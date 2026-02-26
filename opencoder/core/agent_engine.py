@@ -215,7 +215,7 @@ class AgentEngine:
         os.environ["MODEL_API_KEY"] = api_key
         os.environ["MODEL_API_BASE"] = base_url
         
-        self._add_event("system", f"Configured litellm: base_url={base_url}, api_key={api_key[:10]}...")
+        self._add_event("system", f"Configured litellm: base_url={base_url}, [REDACTED]")
 
     def _setup_coder(self) -> Coder:
         """Set up and return the Aider Coder instance."""

@@ -33,7 +33,11 @@ pip install --upgrade pip
 pip install -r requirements.txt
 pip install git+https://github.com/Aider-AI/aider.git
 
+# Configurar API Key (ver .env.example)
+# Copia .env.example a .env y configura tu API key de OpenGPU
+cp .env.example .env
+# Edita .env y pon tu API key
+
 # Ejecutar
-export OPENGPU_API_KEY="relay_sk_a175218cff8db1b346a0add4031067eb17b59bd831013f9ac73f6a5b6cae6360"
 uvicorn opencoder.api.main:app --port 8000
 ```
