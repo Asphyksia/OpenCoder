@@ -18,6 +18,26 @@ from typing import Any, AsyncGenerator, Optional
 from dataclasses import dataclass, field
 
 from openai import AsyncOpenAI
+from loguru import logger
+
+
+# Custom Exceptions
+class OpenGPUError(Exception):
+    """Base exception for OpenGPU adapter."""
+    pass
+
+
+class OpenGPUAPIError(OpenGPUError):
+    """Exception for API-related errors."""
+    def __init__(self, message: str, status_code: int = None):
+        self.status_code = status_code
+        super().__init__(message)
+
+
+class OpenGPUAuthError(OpenGPUError):
+    """Exception for authentication errors."""
+    pass
+
 
 # Aider import - optional
 try:
@@ -205,12 +225,9 @@ class OpenGPUAdapter:
             
             return models
         except Exception as e:
-            print(f"Error fetching models: {e}")
-            # Fallback to default models
-            return [
-                {"name": "openai/Qwen/Qwen3-Coder", "provider": "openai", "type": "text-to-text", "category": "direct"},
-                {"name": "openai/deepseek-ai/DeepSeek-V3.1", "provider": "openai", "type": "text-to-text", "category": "direct"},
-            ]
+            logger.error(f"Error fetching models: {e}")
+            # Return empty list instead of hardcoded fallback
+            return []
     
     async def get_pricing(self) -> list[dict]:
         """Get pricing information from OpenGPU Relay.
@@ -231,7 +248,7 @@ class OpenGPUAdapter:
                 data = response.json()
             return data.get("pricing", [])
         except Exception as e:
-            print(f"Error fetching pricing: {e}")
+            logger.error(f"Error fetching pricing: {e}")
             return []
 
 

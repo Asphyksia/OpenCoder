@@ -19,6 +19,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from loguru import logger
 
 from opencoder.models import (
     ChatRequest,
@@ -81,10 +82,10 @@ agent_state = AgentState()
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
-    print("Starting OpenCoder API...")
+    logger.info("Starting OpenCoder API...")
     yield
     # Shutdown
-    print("Shutting down OpenCoder API...")
+    logger.info("Shutting down OpenCoder API...")
     if agent_state.adapter:
         await agent_state.adapter.close()
 

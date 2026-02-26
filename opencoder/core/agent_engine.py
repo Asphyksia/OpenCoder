@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Optional
 from dataclasses import dataclass, field
 from contextlib import redirect_stdout, redirect_stderr
+from loguru import logger
 
 # Configure litellm BEFORE importing aider
 # This must be done at module level before aider loads
@@ -51,14 +52,14 @@ try:
     except ImportError:
         Audit = None
     AIDER_AVAILABLE = True
-    print(f"Aider loaded successfully: Coder={Coder}, models={models}")
+    logger.info(f"Aider loaded successfully: Coder={Coder}, models={models}")
 except ImportError as e:
     Coder = None
     models = None
     Repo = None
     Audit = None
     AiderIO = None
-    print(f"Aider not available: {e}")
+    logger.warning(f"Aider not available: {e}")
 
 
 
