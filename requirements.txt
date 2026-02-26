@@ -1,0 +1,28 @@
+# OpenCoder - Agentic Coding Tool
+# Dependencies for the backend
+
+# Web Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+
+# Aider - Code Editing Engine
+# NOTE: Install from GitHub for latest version compatible with Python 3.10+
+# pip install git+https://github.com/Aider-AI/aider.git
+# Or use: aider (older version, may not have latest features)
+
+# OpenAI-compatible client (for OpenGPU Relay)
+openai>=1.58.0
+httpx>=0.28.0
+
+# Data Validation
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Utilities
+typing-extensions>=4.12.0
+
+# For code parsing (optional, for advanced features)
+# tree-sitter>=0.20.0
