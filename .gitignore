@@ -39,3 +39,6 @@ Thumbs.db
 
 # Local
 *.log
+
+# Audit files
+OpenCoder_Auditoria_*.txt
