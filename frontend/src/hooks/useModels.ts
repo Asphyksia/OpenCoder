@@ -8,23 +8,23 @@ export function useModels() {
   const modelsQuery = useQuery({
     queryKey: ["models"],
     queryFn: async () => {
-      const models = await api.getModels();
-      setAvailableModels(models);
+      const response = await api.getModels();
+      setAvailableModels(response.models);
       
       // Always set to first available model when models are loaded
-      if (models.length > 0) {
-        setSelectedModel(models[0].name);
+      if (response.models.length > 0) {
+        setSelectedModel(response.models[0].name);
       }
       
-      return models;
+      return response;
     },
     staleTime: 60000, // 1 minute
     retry: 2,
   });
 
   return {
-    models: modelsQuery.data ?? [],
-    count: modelsQuery.data?.length ?? 0,
+    models: modelsQuery.data?.models ?? [],
+    count: modelsQuery.data?.count ?? 0,
     isLoading: modelsQuery.isLoading,
     error: modelsQuery.error,
     refetch: modelsQuery.refetch,
