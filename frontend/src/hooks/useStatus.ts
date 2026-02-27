@@ -58,7 +58,7 @@ export function useHealthCheck() {
   });
 
   return {
-    isHealthy: healthQuery.data?.status === "ok",
+    isHealthy: healthQuery.data?.status === "ok" || healthQuery.data?.status === "healthy",
     ...healthQuery,
   };
 }

@@ -1,277 +1,321 @@
 ================================================================================
-              REVISIÓN DEL FRONTEND - OpenCoder
+              AUDITORÍA FRONTEND - OpenCoder v3
 ================================================================================
+
+Fecha: 27 de Febrero, 2025
+Proyecto: OpenCoder Frontend
+Ubicación: /frontend
 
 ================================================================================
 RESUMEN EJECUTIVO
 ================================================================================
 
-El frontend de OpenCoder muestra una arquitectura sólida y bien pensada, con
-componentes bien estructurados y un diseño limpio. Sin embargo, existe un 
-PROBLEMA CRÍTICO que impide que la aplicación funcione: faltan los archivos 
-core de la carpeta lib/ (types.ts, utils.ts, api.ts).
+El frontend de OpenCoder ha mejorado significativamente con la adición de los
+archivos core en /lib/. La arquitectura es sólida y los componentes están bien
+diseñados. Sin embargo, existen PROBLEMAS CRÍTICOS que impiden la compilación
+y VULNERABILIDADES DE SEGURIDAD que deben ser addressadas inmediatamente.
 
-PUNTUACIÓN GENERAL: 7/10 (sería 9/10 si los archivos lib existieran)
+PUNTUACIÓN GENERAL: 7/10
 
-================================================================================
-LO BUENO ✅
-================================================================================
-
-1. ARQUITECTURA DE COMPONENTES
-   ---------------------------
-   - Estructura de carpetas profesional y escalable
-   - Separación clara de responsabilidades:
-     * components/ui/     → Componentes base (shadcn/ui)
-     * components/layout/ → Header, Sidebar
-     * components/chat/   → ChatContainer, MessageItem, MessageInput
-     * components/agent/  → AgentEvents, DiffViewer
-     * components/common/ → StatusBadge, LoadingDots, Collapsible
-   - Convención de nombrado consistente
-
-2. ESTADO Y DATA FETCHING
-   -----------------------
-   - Zustand para estado global con persistencia selectiva
-   - React Query para server state con configuración apropiada:
-     * Cache staleTime configurado
-     * Retry logic implementado
-     * Refetch intervals para status y health
-   - Store bien tipado con TypeScript
-
-3. DISEÑO Y UX
-   ------------
-   - Dark mode por defecto con soporte light mode
-   - CSS variables para theming (shadcn/ui style)
-   - Animaciones sutiles (fadeIn, pulse, slideIn)
-   - Scrollbar personalizado
-   - Diff highlighting para código
-
-4. COMPONENTES DE CALIDAD
-   -----------------------
-   - MessageItem: Maneja user/assistant, eventos, errores, diffs
-   - AgentEvents: Iconos y colores por tipo de evento
-   - DiffViewer: Expandible, con copy y syntax highlighting
-   - StatusBadge: Colores y animación pulse según estado
-   - Sidebar: Colapsable, responsive, con overlay en móvil
-
-5. HOOKS BIEN ESTRUCTURADOS
-   -------------------------
-   - useChat: Maneja mutation con estados de UI
-   - useStatus: Polling cada 5 segundos
-   - useModels: Cache de 1 minuto
-   - Separación de concerns clara
++------------------------+-------+------------------------------------------+
+| Categoría              | Score | Estado                                   |
++------------------------+-------+------------------------------------------+
+| Arquitectura           | 9/10  | Excelente                                |
+| Componentes            | 8/10  | Bien implementados                       |
+| Tipado TypeScript      | 6/10  | Errores de paths                         |
+| Seguridad              | 4/10  | Vulnerabilidades críticas                |
+| Estado/Estado Servidor | 9/10  | Zustand + React Query correcto           |
+| Diseño/UX              | 8/10  | Limpio y profesional                     |
+| Documentación          | 7/10  | README presente pero incompleto          |
++------------------------+-------+------------------------------------------+
 
 ================================================================================
-PROBLEMA CRÍTICO ❌
+PROBLEMAS CRÍTICOS ❌
 ================================================================================
 
-FALTAN ARCHIVOS CORE EN /lib/
------------------------------
-
-Los siguientes archivos son importados pero NO EXISTEN:
-
-  src/lib/types.ts   ← Importado en useAppStore, useChat, MessageItem, etc.
-  src/lib/utils.ts   ← Importado en casi todos los componentes
-  src/lib/api.ts     ← Importado en useChat, useStatus, useModels
-
-IMPACTO:
-- La aplicación NO PUEDE COMPILAR
-- Imports rotos en TODOS los archivos
-- Sin tipos TypeScript, la integridad del código está comprometida
-
-ARCHIVOS AFECTADOS:
-- store/useAppStore.ts (importa types, utils)
-- hooks/useChat.ts (importa api)
-- hooks/useStatus.ts (importa api)
-- hooks/useModels.ts (importa api)
-- components/chat/MessageItem.tsx (importa types, utils)
-- components/agent/AgentEvents.tsx (importa types, utils)
-- components/agent/DiffViewer.tsx (importa utils)
-- components/common/StatusBadge.tsx (importa utils)
-- components/layout/Header.tsx (importa utils)
-- components/layout/Sidebar.tsx (importa utils)
-
-================================================================================
-LO QUE FALTA 🔧
-================================================================================
-
-1. ARCHIVOS CORE FALTANTES (CRÍTICO)
-   ---------------------------------
+1. VULNERABILIDADES DE SEGURIDAD EN DEPENDENCIAS
+   ----------------------------------------------
+   Severidad: CRÍTICA
    
-   a) src/lib/types.ts debe incluir:
-      - AgentStatus type
-      - Message interface
-      - Model interface
-      - AgentEvent interface
-      - EventType type
-      - FileChange interface
-      - ChatRequest/Response types
-
-   b) src/lib/utils.ts debe incluir:
-      - cn() function (clsx + tailwind-merge)
-      - generateId() function
-      - formatTimestamp() function
-      - formatDuration() function
-
-   c) src/lib/api.ts debe incluir:
-      - API client configuration
-      - sendChat() function
-      - getStatus() function
-      - getModels() function
-      - getPricing() function
-      - health() function
-
-2. MEJORAS SUGERIDAS (MENOR PRIORIDAD)
-   -----------------------------------
+   Al ejecutar npm install, se detectaron:
+   - 7 vulnerabilidades (3 moderate, 3 high, 1 critical)
+   - Next.js 14.2.21 tiene una vulnerabilidad de seguridad documentada
+     Ver: https://nextjs.org/blog/security-update-2025-12-11
    
-   a) Versiones de dependencias:
-      - Next.js 14.2.21 → Debería ser 15.x según el README
-      - React 18.3.1 → Debería ser 19.x según el README
-      - Tailwind 3.4.0 → Debería ser 4.x según el README
-      
-   b) Faltan componentes mencionados en imports:
-      - components/providers/theme-provider.tsx existe pero no se usa en layout
-      - El theme toggle es manual en Header.tsx en lugar de usar next-themes
+   ACCIÓN REQUERIDA:
+   - Actualizar Next.js a la versión más reciente: npm install next@latest
+   - Ejecutar: npm audit fix --force
 
-   c) Accesibilidad:
-      - Añadir aria-labels más descriptivos
-      - Añadir focus states visibles
-      - Añadir skip links para navegación
+2. TSCONFIG.JSON FALTA BASEURL
+   ----------------------------
+   Severidad: ALTA
+   
+   El archivo tsconfig.json tiene paths configurados pero falta baseUrl:
+   
+   ACTUAL:
+   {
+     "compilerOptions": {
+       "paths": {
+         "@/*": ["./src/*"]
+       }
+     }
+   }
+   
+   CORRECTO:
+   {
+     "compilerOptions": {
+       "baseUrl": ".",
+       "paths": {
+         "@/*": ["./src/*"]
+       }
+     }
+   }
+   
+   IMPACTO: TypeScript no puede resolver los imports con alias @/
+   Esto causa 40+ errores de compilación.
 
-3. FUNCIONALIDADES FALTANTES
-   --------------------------
-   - No hay manejo de errores de red global
-   - No hay timeout configurado para requests largos
-   - No hay retry UI para mensajes fallidos
-   - No hay indicador de conexión perdida
+3. TIPO INCORRECTO EN USEHEALTHCHECK
+   ----------------------------------
+   Severidad: MEDIA
+   
+   Archivo: src/hooks/useStatus.ts:61
+   
+   PROBLEMA:
+   return {
+     isHealthy: healthQuery.data?.status === "ok",
+   };
+   
+   HealthResponse define status como string, no como literal "ok":
+   
+   SOLUCIÓN:
+   Opción A: Cambiar HealthResponse para usar literal:
+     export interface HealthResponse {
+       status: "ok" | "healthy";
+       version: string;
+     }
+   
+   Opción B: Cambiar la comparación:
+     isHealthy: healthQuery.data?.status === "healthy"
 
 ================================================================================
-DETALLE POR COMPONENTE
+ERRORES DE TYPESCRIPT DETECTADOS
 ================================================================================
 
-LAYOUT.TSX ✅
+Al ejecutar npx tsc --noEmit, se encontraron los siguientes errores:
+
+ERRORES DE RESOLUCIÓN DE MÓDULOS (causados por falta de baseUrl):
+-----------------------------------------------------------------
+- Cannot find module '@/components/providers/query-provider'
+- Cannot find module '@/components/layout/Header'
+- Cannot find module '@/components/layout/Sidebar'
+- Cannot find module '@/components/chat/ChatContainer'
+- Cannot find module '@/store/useAppStore'
+- Cannot find module '@/hooks/useChat'
+- Cannot find module '@/hooks/useModels'
+- Cannot find module '@/hooks/useStatus'
+- Cannot find module '@/lib/types'
+- Cannot find module '@/lib/api'
+- Cannot find module '@/lib/utils'
+
+ERRORES DE EXPORTS FALTANTES:
+----------------------------
+- Module '"@/lib/utils"' has no exported member 'formatDuration'
+- Module '"@/lib/utils"' has no exported member 'formatTimestamp'
+- Module '"@/lib/utils"' has no exported member 'generateId'
+
+NOTA: Estos exports EXISTEN en utils.ts. El error es por la resolución de paths.
+
+ERRORES DE TIPOS REACT:
+----------------------
+- Collapsible.tsx:35: Type 'React.ReactNode' assignment issue
+- theme-provider.tsx:11: Similar ReactNode type issue
+
+SOLUCIÓN: Estos errores son de compatibilidad de versiones de @types/react.
+Asegurar que todas las dependencias de tipos estén en la misma versión.
+
+================================================================================
+VERSIONES DE DEPENDENCIAS
+================================================================================
+
+DEPENDENCIAS DESACTUALIZADAS:
+----------------------------
+
++------------------+-------------+------------------+----------------------+
+| Paquete          | Actual      | Recomendada      | Notas                |
++------------------+-------------+------------------+----------------------+
+| next             | 14.2.21     | 15.x             | Vulnerabilidad CVE   |
+| react            | 18.3.1      | 19.x             | README indica 19.x   |
+| react-dom        | 18.3.1      | 19.x             | Sincronizar con React|
+| tailwindcss      | 3.4.0       | 4.x              | README indica 4.x    |
+| eslint           | 8.57.0      | 9.x              | Deprecado            |
++------------------+-------------+------------------+----------------------+
+
+NOTA: El README.md indica Next.js 15, React 19 y Tailwind 4.x, pero el
+package.json tiene versiones anteriores. Esto es una discrepancia importante.
+
+DEPENDENCIAS DEPRECADAS:
+-----------------------
+- rimraf@3.0.2 (deprecado, usar v4+)
+- inflight@1.0.6 (deprecado, memory leaks)
+- glob@7.2.3 y glob@10.3.10 (vulnerabilidades conocidas)
+- @humanwhocodes/config-array (deprecado)
+- @humanwhocodes/object-schema (deprecado)
+
+================================================================================
+REVISIÓN POR ARCHIVO
+================================================================================
+
+LIB/TYPES.TSX ✅
+----------------
+- Tipos bien definidos y completos
+- AgentStatus, EventType, Message, Model, etc.
+- Interfaces de API correctas
+- SIN ERRORES
+
+LIB/UTILS.TS ✅
+---------------
+- Funciones utilitarias correctas
+- cn() para clases Tailwind
+- generateId(), formatTimestamp(), formatDuration()
+- getApiUrl() para configuración
+- SIN ERRORES
+
+LIB/API.TS ✅
 -------------
-- Fuentes Inter y JetBrains Mono correctamente configuradas
-- Metadata SEO apropiada
-- QueryProvider integrado
-- Dark class en html por defecto
+- Cliente API bien estructurado
+- Timeout configurado (120s para chat)
+- Manejo de errores con AbortController
+- Todos los endpoints cubiertos
+- SIN ERRORES
 
-PAGE.TSX ✅
------------
-- Estructura limpia: Header + Sidebar + Main
-- Layout flexible correcto
-- Responsive por defecto
+STORE/USEAPPSTORE.TS ✅
+-----------------------
+- Estado global bien tipado
+- Persistencia configurada correctamente
+- Actions inmutables
+- SIN ERRORES (una vez resuelto el path)
 
-HEADER.TSX ✅
--------------
-- StatusBadge integrado
-- Model selector funcional
-- Theme toggle (aunque manual)
-- Menú móvil para sidebar
-
-SIDEBAR.TSX ✅
---------------
-- Overlay para móvil
-- Secciones colapsables
-- File changes aggregation
-- Models list
-
-CHATCONTAINER.TSX ✅
---------------------
-- Auto-scroll al recibir mensajes
-- Empty state con ejemplos
-- Integración con hooks correcta
-
-MESSAGEINPUT.TSX ✅
+HOOKS/USECHAT.TS ✅
 -------------------
-- Textarea auto-resize
-- Keyboard shortcuts (Enter to send)
-- Read-only toggle
-- Processing state visual
+- useMutation bien configurado
+- Manejo de estados (sending, processing, success, error)
+- Actualización optimista de mensajes
+- SIN ERRORES (una vez resuelto el path)
 
-MESSAGEITEM.TSX ✅
-------------------
-- User/Assistant differentiation
-- Events rendering
-- File changes summary
-- Diff viewer integration
-- Error handling
+HOOKS/USESTATUS.TS ⚠️
+---------------------
+- Error de tipo en useHealthCheck (línea 61)
+- Resto del código correcto
+- UN ERROR MENOR
 
-AGENTEVENTS.TSX ✅
-------------------
-- Iconos por tipo de evento
-- Colores distintivos
-- Animación de entrada escalonada
-- Loader para "thinking" activo
+COMPONENTES:
+------------
+Todos los componentes están bien estructurados. Los errores reportados son
+por la resolución de paths, no por errores en el código mismo.
 
-DIFFVIEWER.TSX ✅
------------------
-- Syntax highlighting por línea
-- Expand/collapse para diffs largos
-- Copy to clipboard
-- Color coding (added/removed/header)
-
-STATUSBADGE.TSX ✅
-------------------
-- Colores por estado
-- Animación pulse
-- Configurable showLabel
-
-GLOBAL.CSS ✅
--------------
-- CSS variables completas
-- Dark theme bien configurado
-- Custom scrollbar
-- Animaciones CSS
+- Header.tsx: ✅ Correcto
+- Sidebar.tsx: ✅ Correcto
+- ChatContainer.tsx: ✅ Correcto
+- MessageItem.tsx: ✅ Correcto
+- MessageInput.tsx: ✅ Correcto
+- AgentEvents.tsx: ✅ Correcto
+- DiffViewer.tsx: ✅ Correcto
+- StatusBadge.tsx: ✅ Correcto
+- Collapsible.tsx: ⚠️ Warning de tipo ReactNode
 
 ================================================================================
-SCORE POR CATEGORÍA
+ÁREAS DE MEJORA
 ================================================================================
 
-+------------------------+-------+------------------------------------------+
-| Categoría              | Score | Notas                                    |
-+------------------------+-------+------------------------------------------+
-| Arquitectura           | 9/10  | Excelente estructura modular             |
-| Componentes            | 9/10  | Bien implementados, reutilizables        |
-| Estado (Zustand)       | 9/10  | Tipado, persistencia, bien organizado    |
-| Data Fetching          | 8/10  | React Query bien configurado             |
-| Diseño/UX              | 8/10  | Limpio, dark mode, animaciones           |
-| Tipado TypeScript      | 7/10  | Faltan archivos types.ts                 |
-| Funcionalidad          | N/A   | No compilable sin lib/                   |
-| Documentación          | 8/10  | README bueno pero incompleto             |
-+------------------------+-------+------------------------------------------+
-| TOTAL                  | 7/10  | Falta completar archivos lib/            |
-+------------------------+-------+------------------------------------------+
+1. CONFIGURACIÓN (CRÍTICO)
+   ------------------------
+   - Añadir "baseUrl": "." a tsconfig.json
+   - Actualizar package.json con versiones correctas
+   - Ejecutar npm audit fix
+
+2. SEGURIDAD (CRÍTICO)
+   --------------------
+   - Actualizar Next.js por vulnerabilidad CVE
+   - Revisar y actualizar todas las dependencias con vulnerabilidades
+   - Considerar npm audit en CI/CD
+
+3. TIPOS (MEDIA)
+   --------------
+   - Corregir HealthResponse para usar literal types
+   - Sincronizar versiones de @types/react y @types/react-dom
+   - Considerar usar import type para tipos
+
+4. FUNCIONALIDAD FALTANTE (BAJA)
+   ------------------------------
+   - No hay manejo de reconexión automática
+   - No hay indicador de "conexión perdida"
+   - No hay retry UI para mensajes fallidos
+   - Theme provider no está integrado en layout.tsx
+
+5. ACCESIBILIDAD (BAJA)
+   ---------------------
+   - Añadir más aria-labels descriptivos
+   - Añadir skip links para navegación
+   - Mejorar focus states visibles
+   - Añadir soporte para screen readers
+
+6. TESTING (FALTA)
+   ----------------
+   - No hay tests unitarios
+   - No hay tests de integración
+   - Considerar añadir Jest + React Testing Library
 
 ================================================================================
-ACCIÓN REQUERIDA
+ACCIONES PRIORITARIAS
 ================================================================================
 
-PRIORIDAD CRÍTICA:
-1. Crear src/lib/types.ts con todos los tipos necesarios
-2. Crear src/lib/utils.ts con las funciones de utilidad
-3. Crear src/lib/api.ts con el cliente API
+INMEDIATO (Esta semana):
+------------------------
+1. [CRÍTICO] Añadir "baseUrl": "." a tsconfig.json
+2. [CRÍTICO] Actualizar Next.js: npm install next@latest
+3. [CRÍTICO] Ejecutar npm audit fix --force
+4. [ALTO] Corregir tipo en useHealthCheck
 
-PRIORIDAD ALTA:
-4. Verificar que la aplicación compile sin errores
-5. Actualizar versiones en package.json (Next.js 15, React 19)
+CORTO PLAZO (Próximas 2 semanas):
+---------------------------------
+5. Actualizar React a 19.x y React DOM
+6. Actualizar Tailwind CSS a 4.x (revisar breaking changes)
+7. Sincronizar versiones de dependencias con README
+8. Integrar ThemeProvider en layout.tsx
 
-PRIORIDAD MEDIA:
-6. Integrar next-themes correctamente en layout.tsx
-7. Añadir manejo de errores de red global
-8. Añadir tests básicos
+MEDIO PLAZO (Próximo mes):
+--------------------------
+9. Añadir tests unitarios básicos
+10. Implementar manejo de reconexión
+11. Mejorar accesibilidad (WCAG 2.1 AA)
+12. Añadir Storybook para documentación de componentes
 
 ================================================================================
 CONCLUSIÓN
 ================================================================================
 
-El frontend tiene una base excelente y sigue las mejores prácticas modernas
-de React/Next.js. La arquitectura de componentes es profesional, el estado
-está bien manejado con Zustand + React Query, y el diseño es limpio y moderno.
+El frontend de OpenCoder tiene una arquitectura sólida y componentes bien
+diseñados. La estructura de carpetas es profesional y sigue las mejores
+prácticas de Next.js. Sin embargo, hay problemas de configuración y seguridad
+que deben resolverse antes de poder compilar y ejecutar la aplicación.
 
-Sin embargo, la falta de los archivos core en /lib/ impide que la aplicación
-funcione. Una vez creados estos archivos, el proyecto estaría listo para 
-producción con solo algunos ajustes menores.
+Una vez resuelto el problema de baseUrl en tsconfig.json y actualizadas las
+dependencias vulnerables, el proyecto debería compilar sin errores y estar
+listo para desarrollo activo.
 
-ESTIMACIÓN: Con los archivos lib/ creados, el proyecto estaría 95% completo.
+ESTADO ACTUAL: No compilable
+ESTADO POST-FIX: Listo para desarrollo
+
+================================================================================
+CHECKLIST DE CORRECCIONES
+================================================================================
+
+[ ] Añadir "baseUrl": "." a tsconfig.json
+[ ] Actualizar Next.js a versión segura
+[ ] Ejecutar npm audit fix
+[ ] Corregir HealthResponse o useHealthCheck
+[ ] Actualizar versiones en package.json según README
+[ ] Ejecutar npm run build sin errores
+[ ] Verificar que la aplicación carga en localhost:3000
 
 ================================================================================
