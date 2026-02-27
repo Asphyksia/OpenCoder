@@ -262,7 +262,9 @@ async def get_status(session_id: Optional[str] = None):
     try:
         if agent_state.adapter is None:
             agent_state.adapter = OpenGPUAdapter()
-        available_models = await agent_state.adapter.get_available_models()
+        models = await agent_state.adapter.get_available_models()
+        # Extract model names from the list of dicts
+        available_models = [m.get("name", str(m)) for m in models]
     except Exception:
         pass
     
