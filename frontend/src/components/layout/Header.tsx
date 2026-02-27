@@ -76,9 +76,9 @@ export function Header() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 z-[100]">
             {models.length > 0 ? (
-              models.map((model: Model) => (
+              models.map((model: Model, index: number) => (
                 <DropdownMenuItem
-                  key={model.name}
+                  key={`${model.name}-${index}`}
                   onClick={() => setSelectedModel(model.name)}
                   className={cn(
                     selectedModel === model.name && "bg-muted"

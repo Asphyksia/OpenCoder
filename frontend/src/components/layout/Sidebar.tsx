@@ -123,9 +123,9 @@ export function Sidebar() {
           {/* Available Models */}
           <Collapsible title="Available Models" defaultOpen>
             <ul className="space-y-1 text-sm">
-              {models.map((model) => (
+              {models.map((model, index) => (
                 <li
-                  key={model.name}
+                  key={`${model.name}-${index}`}
                   className="flex items-center gap-2 truncate"
                 >
                   <Cpu className="w-3 h-3 flex-shrink-0" />
