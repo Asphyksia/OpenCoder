@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { useAppStore } from "@/store/useAppStore";
 import { useModels } from "@/hooks/useModels";
 import { useStatus } from "@/hooks/useStatus";
+import { Model } from "@/lib/types";
 import { Sun, Moon, Menu } from "lucide-react";
 import {
   DropdownMenu,
@@ -75,7 +76,7 @@ export function Header() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 z-[100]">
             {models.length > 0 ? (
-              models.map((model: { name: string; provider: string; category: string }) => (
+              models.map((model: Model) => (
                 <DropdownMenuItem
                   key={model.name}
                   onClick={() => setSelectedModel(model.name)}
@@ -86,7 +87,7 @@ export function Header() {
                   <div className="flex flex-col">
                     <span>{model.name}</span>
                     <span className="text-xs text-muted-foreground">
-                      {model.provider} • {model.category}
+                      {model.provider} • {model.category || "General"}
                     </span>
                   </div>
                 </DropdownMenuItem>

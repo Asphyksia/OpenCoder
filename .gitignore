@@ -44,3 +44,4 @@ Thumbs.db
 # Audit files
 OpenCoder_Auditoria_*.txt
 node_modules/
+.next/

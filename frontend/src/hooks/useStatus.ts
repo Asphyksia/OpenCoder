@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/store/useAppStore";
+import type { AgentStatus } from "@/lib/types";
 
 const STATUS_REFRESH_INTERVAL = 5000; // 5 seconds
 
@@ -13,10 +14,14 @@ export function useStatus() {
     queryFn: async () => {
       try {
         const status = await api.getStatus();
+        // Map status string to AgentStatus type
+        const mappedStatus = status.status as AgentStatus;
         // Keep status as ready if backend returns no_session
         // (agent is ready to receive messages and create a session)
         if (status.status !== "no_session") {
-          setAgentStatus(status.status);
+          setAgentStatus(mappedStatus);
+        } else {
+          setAgentStatus("ready");
         }
         setRepoPath(status.repo_path);
         return status;

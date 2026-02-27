@@ -13,6 +13,11 @@ import {
   CheckCircle,
   Loader2,
   MessageSquare,
+  Terminal,
+  Eye,
+  Globe,
+  Zap,
+  Code,
 } from "lucide-react";
 
 interface AgentEventsProps {
@@ -25,10 +30,10 @@ const defaultConfig = {
   label: "Unknown",
 };
 
-const eventConfig: Record<
+const eventConfig: Partial<Record<
   EventType,
   { icon: typeof Brain; color: string; label: string }
-> = {
+>> = {
   thinking: {
     icon: Brain,
     color: "text-gray-400",
@@ -39,32 +44,42 @@ const eventConfig: Record<
     color: "text-blue-400",
     label: "Planning",
   },
-  editing: {
+  edit: {
     icon: Pencil,
     color: "text-green-400",
     label: "Editing",
   },
-  file: {
-    icon: FileText,
+  read: {
+    icon: Eye,
     color: "text-cyan-400",
-    label: "File",
+    label: "Reading",
   },
-  git: {
-    icon: GitBranch,
+  tool: {
+    icon: Terminal,
+    color: "text-purple-400",
+    label: "Tool",
+  },
+  command: {
+    icon: Terminal,
     color: "text-orange-400",
-    label: "Git",
+    label: "Command",
+  },
+  action: {
+    icon: Zap,
+    color: "text-yellow-400",
+    label: "Action",
+  },
+  browser: {
+    icon: Globe,
+    color: "text-blue-400",
+    label: "Browser",
   },
   error: {
     icon: AlertCircle,
     color: "text-red-400",
     label: "Error",
   },
-  system: {
-    icon: Settings,
-    color: "text-gray-400",
-    label: "System",
-  },
-  complete: {
+  done: {
     icon: CheckCircle,
     color: "text-green-400",
     label: "Complete",
@@ -75,7 +90,8 @@ export function AgentEvents({ events }: AgentEventsProps) {
   return (
     <div className="space-y-2">
       {events.map((event, idx) => {
-        const config = eventConfig[event.event_type] || defaultConfig;
+        const eventType = event.event_type as EventType;
+        const config = eventConfig[eventType] || defaultConfig;
         const Icon = config.icon;
 
         return (

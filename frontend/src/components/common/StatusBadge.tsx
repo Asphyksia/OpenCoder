@@ -7,12 +7,18 @@ interface StatusBadgeProps {
   showLabel?: boolean;
 }
 
-const statusConfig = {
+const statusConfig: Record<AgentStatus, { label: string; color: string; textColor: string; borderColor: string }> = {
   ready: {
     label: "Ready",
     color: "bg-green-500",
     textColor: "text-green-500",
     borderColor: "border-green-500/30",
+  },
+  processing: {
+    label: "Processing",
+    color: "bg-blue-500",
+    textColor: "text-blue-500",
+    borderColor: "border-blue-500/30",
   },
   busy: {
     label: "Busy",

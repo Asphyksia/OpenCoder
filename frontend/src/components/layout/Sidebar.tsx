@@ -2,10 +2,12 @@
 
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
+import { useMemo } from "react";
 import { useModels } from "@/hooks/useModels";
 import { useStatus } from "@/hooks/useStatus";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Collapsible } from "@/components/common/Collapsible";
+import type { FileChange } from "@/lib/types";
 import {
   FileText,
   GitBranch,
@@ -20,15 +22,17 @@ export function Sidebar() {
   const { status } = useStatus();
 
   // Get all file changes from messages
-  const fileChanges = messages
-    .filter((m) => m.fileChanges && m.fileChanges.length > 0)
-    .flatMap((m) => m.fileChanges || [])
-    .reduce((acc, file) => {
-      if (!acc.find((f) => f.filename === file.filename)) {
-        acc.push(file);
-      }
-      return acc;
-    }, [] as typeof messages[number]["fileChanges"]);
+  const fileChanges: FileChange[] = useMemo(() => {
+    return messages
+      .filter((m) => m.fileChanges && m.fileChanges.length > 0)
+      .flatMap((m) => m.fileChanges || [])
+      .reduce<FileChange[]>((acc, file) => {
+        if (!acc.find((f) => f.filename === file.filename)) {
+          acc.push(file);
+        }
+        return acc;
+      }, []);
+  }, [messages]);
 
   if (!sidebarOpen) return null;
 

@@ -8,35 +8,40 @@ export function useModels() {
   const modelsQuery = useQuery({
     queryKey: ["models"],
     queryFn: async () => {
-      const response = await api.getModels();
-      setAvailableModels(response.models);
+      const models = await api.getModels();
+      setAvailableModels(models);
       
       // Always set to first available model when models are loaded
-      if (response.models.length > 0) {
-        setSelectedModel(response.models[0].name);
+      if (models.length > 0) {
+        setSelectedModel(models[0].name);
       }
       
-      return response;
+      return models;
     },
     staleTime: 60000, // 1 minute
     retry: 2,
   });
 
   return {
-    models: modelsQuery.data?.models ?? [],
-    count: modelsQuery.data?.count ?? 0,
+    models: modelsQuery.data ?? [],
+    count: modelsQuery.data?.length ?? 0,
     isLoading: modelsQuery.isLoading,
     error: modelsQuery.error,
     refetch: modelsQuery.refetch,
   };
 }
 
+// Note: getPricing is not implemented in the backend API yet
 export function usePricing() {
   const pricingQuery = useQuery({
     queryKey: ["pricing"],
-    queryFn: api.getPricing,
+    queryFn: async () => {
+      // Placeholder - backend doesn't have pricing endpoint
+      return { models: [] };
+    },
     staleTime: 300000, // 5 minutes
     retry: 1,
+    enabled: false, // Disabled until backend supports it
   });
 
   return pricingQuery;

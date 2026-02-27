@@ -119,7 +119,7 @@ export function MessageItem({ message }: MessageItemProps) {
                           file.operation === "deleted" && "text-red-500"
                         )}
                       >
-                        [{file.operation.charAt(0).toUpperCase()}]</span>
+                        [{file.operation?.charAt(0).toUpperCase() || "M"}]</span>
                       {file.filename}
                     </li>
                   ))}
