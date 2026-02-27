@@ -45,3 +45,4 @@ Thumbs.db
 OpenCoder_Auditoria_*.txt
 node_modules/
 .next/
+.aider.chat.history.md
