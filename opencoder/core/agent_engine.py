@@ -558,3 +558,308 @@ class SimpleAgentEngine:
     def clear_history(self) -> None:
         """Clear the conversation history."""
         self._conversation_history = []
+
+
+class AiderCLIEngine:
+    """Aider CLI wrapper for real agentic coding.
+    
+    This class runs Aider as a subprocess, providing real file editing
+    capabilities with proper context and git integration.
+    """
+    
+    def __init__(
+        self,
+        repo_path: str,
+        model_name: str,
+        read_only: bool = False,
+        auto_commits: bool = False,
+        event_callback: Optional[callable] = None,
+    ) -> None:
+        """Initialize the Aider CLI engine.
+        
+        Args:
+            repo_path: Path to the repository directory.
+            model_name: Model to use (e.g., "gpt-4o", "claude-sonnet-4-6").
+            read_only: If True, prevent file modifications.
+            auto_commits: If True, automatically commit changes.
+            event_callback: Optional callback for streaming events.
+        """
+        self.repo_path = Path(repo_path).resolve()
+        self.model_name = model_name
+        self.read_only = read_only
+        self.auto_commits = auto_commits
+        self.event_callback = event_callback
+        
+        self._conversation_history: list[dict[str, str]] = []
+        self._events: list[AgentEvent] = []
+        self._file_changes: list[FileChange] = []
+        
+    def _add_event(self, event_type: str, content: str) -> None:
+        """Add an event and call callback if present."""
+        import time
+        event = AgentEvent(
+            event_type=event_type,
+            content=content,
+            timestamp=str(time.time())
+        )
+        self._events.append(event)
+        
+        if self.event_callback:
+            self.event_callback(event)
+    
+    def _discover_files(self) -> list[str]:
+        """Discover source files in the repository.
+        
+        Returns:
+            List of file paths to include in context.
+        """
+        if not self.repo_path.exists():
+            return []
+        
+        # Common source file extensions
+        extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.cpp', '.c', '.h', '.go', '.rs', '.rb', '.php', '.swift', '.kt'}
+        files = []
+        
+        for ext in extensions:
+            files.extend(self.repo_path.rglob(f'*{ext}'))
+        
+        # Filter out common ignore patterns
+        ignored_dirs = {'node_modules', '.git', '__pycache__', 'venv', '.venv', 'dist', 'build', '.next'}
+        
+        filtered = []
+        for f in files:
+            # Skip ignored directories
+            if any(ignored in f.parts for ignored in ignored_dirs):
+                continue
+            filtered.append(str(f))
+        
+        return filtered[:50]  # Limit to 50 files for context
+    
+    def _get_git_diff(self) -> str:
+        """Get git diff of changes.
+        
+        Returns:
+            Git diff output as string.
+        """
+        import subprocess
+        
+        try:
+            result = subprocess.run(
+                ['git', 'diff', 'HEAD'],
+                cwd=str(self.repo_path),
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            return result.stdout
+        except Exception as e:
+            self._add_event("error", f"Failed to get git diff: {e}")
+            return ""
+    
+    def _parse_git_diff(self, diff_text: str) -> list[FileChange]:
+        """Parse git diff into FileChange objects.
+        
+        Args:
+            diff_text: Raw git diff output.
+            
+        Returns:
+            List of FileChange objects.
+        """
+        changes = []
+        current_file = None
+        current_diff = []
+        
+        for line in diff_text.split('\n'):
+            if line.startswith('diff --git'):
+                if current_file:
+                    changes.append(FileChange(
+                        filename=current_file,
+                        diff='\n'.join(current_diff),
+                        operation='modified'
+                    ))
+                # Extract filename from: diff --git a/path b/path
+                parts = line.split()
+                if len(parts) >= 4:
+                    current_file = parts[2].replace('a/', '')
+                    current_diff = [line]
+            elif current_file:
+                current_diff.append(line)
+        
+        if current_file:
+            changes.append(FileChange(
+                filename=current_file,
+                diff='\n'.join(current_diff),
+                operation='modified'
+            ))
+        
+        return changes
+    
+    def _get_env(self) -> dict[str, str]:
+        """Get environment variables for Aider subprocess.
+        
+        Returns:
+            Dictionary of environment variables.
+        """
+        import os
+        env = os.environ.copy()
+        
+        # Configure for OpenGPU Relay
+        api_key = os.getenv("OPENGPU_API_KEY", "")
+        base_url = os.getenv("OPENGPU_BASE_URL", "https://relay.opengpu.network/v1")
+        
+        if api_key:
+            env["OPENAI_API_KEY"] = api_key
+            env["OPENAI_API_BASE"] = f"{base_url}/openai"
+            env["ANTHROPIC_API_KEY"] = api_key
+            env["ANTHROPIC_API_BASE"] = f"{base_url}/anthropic"
+            env["OLLAMA_API_BASE"] = f"{base_url}/ollama"
+        
+        return env
+    
+    async def execute(self, message: str) -> AgentResponse:
+        """Execute a message using Aider CLI.
+        
+        Args:
+            message: User message/command.
+            
+        Returns:
+            AgentResponse with results and file changes.
+        """
+        import asyncio
+        import subprocess
+        
+        self._events = []
+        self._file_changes = []
+        
+        self._add_event("system", f"Starting Aider with model: {self.model_name}")
+        
+        try:
+            # Ensure repo path exists
+            if not self.repo_path.exists():
+                self.repo_path.mkdir(parents=True, exist_ok=True)
+                # Initialize git repo if needed
+                subprocess.run(['git', 'init'], cwd=str(self.repo_path), capture_output=True)
+                self._add_event("system", f"Initialized git repository: {self.repo_path}")
+            
+            # Discover files for context
+            context_files = self._discover_files()
+            if context_files:
+                self._add_event("system", f"Found {len(context_files)} files in repository")
+            
+            # Build aider command
+            cmd = [
+                'aider',
+                '--model', self.model_name,
+                '--message', message,
+                '--no-auto-commits' if not self.auto_commits else '--auto-commits',
+                '--pretty',
+            ]
+            
+            if self.read_only:
+                cmd.append('--read-only')
+            
+            # Add context files
+            for f in context_files[:20]:  # Limit to 20 files
+                cmd.extend(['--file', f])
+            
+            self._add_event("thinking", "Processing your request...")
+            
+            # Run Aider
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                cwd=str(self.repo_path),
+                env=self._get_env(),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            stdout_text = stdout.decode('utf-8', errors='replace')
+            stderr_text = stderr.decode('utf-8', errors='replace')
+            
+            # Parse output for events
+            self._add_event("output", stdout_text[:1000] if stdout_text else "No output")
+            
+            if stderr_text:
+                self._add_event("error", stderr_text[:500] if "error" in stderr_text.lower() else "")
+            
+            # Get git diff
+            self._add_event("system", "Capturing file changes...")
+            diff_text = self._get_git_diff()
+            
+            if diff_text:
+                self._file_changes = self._parse_git_diff(diff_text)
+                self._add_event("system", f"Found {len(self._file_changes)} file changes")
+            else:
+                self._add_event("system", "No file changes detected")
+            
+            # Build response
+            success = process.returncode == 0 or len(self._file_changes) > 0
+            
+            return AgentResponse(
+                success=success,
+                message=f"Executed: {message[:50]}...",
+                events=self._events,
+                file_changes=self._file_changes,
+                diffs=diff_text[:5000] if diff_text else "",  # Limit diff size
+                error=None if success else f"Exit code: {process.returncode}"
+            )
+            
+        except asyncio.TimeoutError:
+            self._add_event("error", "Aider command timed out")
+            return AgentResponse(
+                success=False,
+                message="Command timed out",
+                events=self._events,
+                file_changes=[],
+                diffs="",
+                error="Timeout"
+            )
+        except Exception as e:
+            error_msg = str(e)
+            self._add_event("error", error_msg)
+            return AgentResponse(
+                success=False,
+                message="Error during execution",
+                events=self._events,
+                file_changes=self._file_changes,
+                diffs="",
+                error=error_msg
+            )
+    
+    def get_status(self) -> dict[str, Any]:
+        """Get status of the repository.
+        
+        Returns:
+            Dictionary with repository status.
+        """
+        import subprocess
+        
+        status = {
+            "repo_path": str(self.repo_path),
+            "read_only": self.read_only,
+            "events_count": len(self._events),
+            "file_changes_count": len(self._file_changes),
+        }
+        
+        try:
+            # Get git status
+            result = subprocess.run(
+                ['git', 'status', '--porcelain'],
+                cwd=str(self.repo_path),
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            status["git_status"] = result.stdout
+            status["has_changes"] = bool(result.stdout.strip())
+        except Exception as e:
+            status["error"] = str(e)
+        
+        return status
+    
+    def reset(self) -> None:
+        """Reset engine state."""
+        self._events = []
+        self._file_changes = []

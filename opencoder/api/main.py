@@ -30,7 +30,7 @@ from opencoder.models import (
     FileChangeSchema,
 )
 from opencoder.core import OpenGPUAdapter, AiderOpenGPUModel
-from opencoder.core.agent_engine import AgentEngine, SimpleAgentEngine
+from opencoder.core.agent_engine import AgentEngine, SimpleAgentEngine, AiderCLIEngine
 
 
 # Global state management
@@ -51,16 +51,12 @@ class AgentState:
     ) -> AgentEngine:
         """Get existing engine or create new one for session."""
         if session_id not in self.engines:
-            # Create new model and engine
-            if self.adapter is None:
-                self.adapter = OpenGPUAdapter()
-            
-            # Use SimpleAgentEngine which uses OpenGPUAdapter directly
-            # instead of AgentEngine which uses Aider/litellm
-            model = AiderOpenGPUModel(model_name, self.adapter)
-            self.engines[session_id] = SimpleAgentEngine(
+            # Use AiderCLIEngine for real agentic coding with file editing
+            # This runs Aider as a subprocess with proper git integration
+            self.engines[session_id] = AiderCLIEngine(
                 repo_path=repo_path,
-                model=model
+                model_name=model_name,
+                read_only=read_only
             )
         
         return self.engines[session_id]
@@ -209,25 +205,32 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
             read_only=request.read_only
         )
         
-        # Execute the user's message using SimpleAgentEngine
-        # SimpleAgentEngine uses chat() method instead of execute()
-        result = await engine.chat(request.message)
+        # Execute the user's message using AiderCLIEngine
+        # AiderCLIEngine uses execute() method which returns AgentResponse
+        result = await engine.execute(request.message)
         
-        # Convert to response model (SimpleAgentEngine returns a dict, not AgentResponse)
+        # Convert to response model (AiderCLIEngine returns AgentResponse with file changes)
         return ChatResponse(
-            success=result.get("success", False),
-            message=result.get("message", ""),
+            success=result.success,
+            message=result.message,
             events=[
                 EventSchema(
-                    event_type=e.get("event_type", "unknown"),
-                    content=e.get("content", ""),
-                    timestamp=e.get("timestamp", "")
+                    event_type=e.event_type,
+                    content=e.content,
+                    timestamp=e.timestamp
                 )
-                for e in result.get("events", [])
+                for e in result.events
             ],
-            file_changes=[],  # SimpleAgentEngine doesn't track file changes
-            diffs="",
-            error=result.get("error")
+            file_changes=[
+                FileChangeSchema(
+                    filename=fc.filename,
+                    diff=fc.diff,
+                    operation=fc.operation
+                )
+                for fc in result.file_changes
+            ],
+            diffs=result.diffs,
+            error=result.error
         )
         
     except Exception as e:
