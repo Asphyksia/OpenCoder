@@ -753,6 +753,7 @@ class AiderCLIEngine:
                 '--message', message,
                 '--no-auto-commits' if not self.auto_commits else '--auto-commits',
                 '--pretty',
+                '--yes',  # Auto-confirm
             ]
             
             if self.read_only:
@@ -764,16 +765,36 @@ class AiderCLIEngine:
             
             self._add_event("thinking", "Processing your request...")
             
-            # Run Aider
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                cwd=str(self.repo_path),
-                env=self._get_env(),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            
-            stdout, stderr = await process.communicate()
+            # Run Aider with timeout
+            try:
+                process = await asyncio.wait_for(
+                    asyncio.create_subprocess_exec(
+                        *cmd,
+                        cwd=str(self.repo_path),
+                        env=self._get_env(),
+                        stdin=asyncio.subprocess.PIPE,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    ),
+                    timeout=120.0  # 2 minute timeout
+                )
+                
+                # Send message and get response
+                stdout, stderr = await process.communicate()
+                
+            except asyncio.TimeoutError:
+                # Kill the process on timeout
+                process.kill()
+                await process.wait()
+                self._add_event("error", "Aider command timed out after 2 minutes")
+                return AgentResponse(
+                    success=False,
+                    message="Command timed out",
+                    events=self._events,
+                    file_changes=[],
+                    diffs="",
+                    error="Timeout after 120 seconds"
+                )
             
             stdout_text = stdout.decode('utf-8', errors='replace')
             stderr_text = stderr.decode('utf-8', errors='replace')
