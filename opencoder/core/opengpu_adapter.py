@@ -59,7 +59,7 @@ class OpenGPUConfig:
     """
     base_url: str = "https://relay.opengpu.network/v1"
     api_key: str = ""
-    default_model: str = "gpt-4o"
+    default_model: str = "Qwen/Qwen3-Coder"
     timeout: float = 120.0
     max_tokens: int = 4096
 
@@ -149,37 +149,94 @@ class OpenGPUAdapter:
         if not model:
             model = self.config.default_model
         
+        # Parse model name to extract provider
+        # Format: "provider/model-name" or just "model-name"
+        # Examples: "ollama/llama3.2:3b", "openai/gpt-5.2", "anthropic/claude-opus-4-6", "gpt-oss:20b"
+        if "/" in model:
+            provider, model_name = model.split("/", 1)
+        else:
+            # Default to openai-compatible endpoint if no provider specified
+            provider = "openai"
+            model_name = model
+        
+        # Determine the correct endpoint based on provider
+        # Note: Ollama uses a different path structure
+        # Base URL for backend services - use relaygpu.com directly to avoid redirects
+        backend_base = "https://relaygpu.com/backend"
+        
+        if provider == "ollama":
+            # Ollama: /v2/ollama/api/chat (not /backend/ollama/v1/...)
+            provider_url = "https://relay.opengpu.network/v2/ollama/api/chat"
+        elif provider == "anthropic":
+            # Anthropic: /backend/anthropic/v1/messages
+            provider_url = f"{backend_base}/anthropic/v1/messages"
+        else:
+            # OpenAI-compatible (openai, deepseek, qwen, moonshotai, etc.): /backend/openai/v1/chat/completions
+            provider_url = f"{backend_base}/openai/v1/chat/completions"
+        
+        logger.info(f"Sending request to {provider_url} with model {model_name}")
+        
+        # Build request - only include valid fields for the provider
         request_params = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": self.config.max_tokens,
-            **kwargs
+            "model": model_name,
+            "messages": messages
         }
         
+        # Only add temperature for non-ollama providers (ollama uses different param)
+        if provider != "ollama":
+            request_params["temperature"] = temperature
+            request_params["max_tokens"] = self.config.max_tokens
+        
         if stream:
-            return self._stream_chat(request_params)
+            return self._stream_chat(request_params, provider_url)
         else:
-            response = await self.client.chat.completions.create(**request_params)
-            return response.model_dump()
+            # Use httpx directly for custom endpoint
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    provider_url,
+                    json=request_params,
+                    headers={
+                        "Authorization": f"Bearer {self.config.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    timeout=self.config.timeout
+                )
+                response.raise_for_status()
+                return response.json()
     
     async def _stream_chat(
         self,
-        request_params: dict[str, Any]
+        request_params: dict[str, Any],
+        provider_url: str = None
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Handle streaming chat responses.
         
         Args:
             request_params: Parameters for the chat completion request.
+            provider_url: The provider-specific URL to call.
         
         Yields:
             Chunk dictionaries for each streaming response.
         """
-        request_params["stream"] = True
-        stream = await self.client.chat.completions.create(**request_params)
+        import httpx
         
-        async for chunk in stream:
-            yield chunk.model_dump()
+        request_params["stream"] = True
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                provider_url,
+                json=request_params,
+                headers={
+                    "Authorization": f"Bearer {self.config.api_key}",
+                    "Content-Type": "application/json"
+                },
+                timeout=self.config.timeout
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        yield line
     
     async def close(self) -> None:
         """Close the client connection."""
@@ -198,8 +255,7 @@ class OpenGPUAdapter:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.config.base_url}/v2/models",
-                    headers={"Authorization": f"Bearer {self.config.api_key}"},
+                    f"https://relay.opengpu.network/v2/models",
                     timeout=10.0
                 )
                 response.raise_for_status()
@@ -208,25 +264,24 @@ class OpenGPUAdapter:
             # Parse models from the response
             models = []
             
-            # Process auto and direct categories
-            for category in ['auto', 'direct']:
+            # Process auto, direct, and opengpu categories
+            for category in ['auto', 'direct', 'opengpu']:
                 if category in data:
                     for provider, provider_models in data[category].items():
-                        if provider == 'openai' or provider == 'anthropic':
-                            for model_info in provider_models:
-                                if model_info.get('tag') == 'text-to-text':
-                                    full_name = f"{provider}/{model_info['name']}"
-                                    models.append({
-                                        "name": full_name,
-                                        "provider": provider,
-                                        "type": "text-to-text",
-                                        "category": category
-                                    })
+                        for model_info in provider_models:
+                            # Only include text-to-text models for coding
+                            if model_info.get('tag') == 'text-to-text':
+                                full_name = f"{provider}/{model_info['name']}"
+                                models.append({
+                                    "name": full_name,
+                                    "provider": provider,
+                                    "type": model_info.get('tag', 'text-to-text'),
+                                    "category": category
+                                })
             
             return models
         except Exception as e:
             logger.error(f"Error fetching models: {e}")
-            # Return empty list instead of hardcoded fallback
             return []
     
     async def get_pricing(self) -> list[dict]:
@@ -240,8 +295,7 @@ class OpenGPUAdapter:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.config.base_url}/v2/pricing",
-                    headers={"Authorization": f"Bearer {self.config.api_key}"},
+                    f"https://relay.opengpu.network/v2/pricing",
                     timeout=10
                 )
                 response.raise_for_status()

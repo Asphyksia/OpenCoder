@@ -30,6 +30,9 @@ def _configure_litellm_early():
         _os.environ["OPENAI_API_BASE"] = _base_url
         _os.environ["LITELLM_API_KEY"] = _api_key
         _os.environ["LITELLM_API_BASE"] = _base_url
+        # Route all models through the relay
+        _os.environ["OLLAMA_API_BASE"] = f"{_base_url}/ollama"
+        _os.environ["ANTHROPIC_API_BASE"] = f"{_base_url}/anthropic"
         print(f"[OpenCoder] Configured litellm: base_url={_base_url}")
 
 # Call early configuration
@@ -503,11 +506,23 @@ class SimpleAgentEngine:
                     model=self.model.model_name
                 )
             
-            # Extract assistant response
+            # Extract assistant response - handle both OpenAI and Ollama formats
             if hasattr(response, 'choices'):
+                # OpenAI SDK object
                 assistant_message = response.choices[0].message.content
             elif isinstance(response, dict):
-                assistant_message = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+                # Plain dict response - check for OpenAI format first (choices array)
+                choices = response.get("choices", [])
+                if choices:
+                    msg = choices[0].get("message", {})
+                    if isinstance(msg, dict):
+                        assistant_message = msg.get("content", str(response))
+                    else:
+                        assistant_message = str(msg)
+                else:
+                    # Ollama format: {"message": {"content": "..."}}
+                    msg = response.get("message", {})
+                    assistant_message = msg.get("content", str(response))
             else:
                 assistant_message = str(response)
             

@@ -55,11 +55,12 @@ class AgentState:
             if self.adapter is None:
                 self.adapter = OpenGPUAdapter()
             
+            # Use SimpleAgentEngine which uses OpenGPUAdapter directly
+            # instead of AgentEngine which uses Aider/litellm
             model = AiderOpenGPUModel(model_name, self.adapter)
-            self.engines[session_id] = AgentEngine(
+            self.engines[session_id] = SimpleAgentEngine(
                 repo_path=repo_path,
-                model=model,
-                read_only=read_only
+                model=model
             )
         
         return self.engines[session_id]
@@ -208,31 +209,25 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
             read_only=request.read_only
         )
         
-        # Execute the user's message
-        result = await engine.execute(request.message)
+        # Execute the user's message using SimpleAgentEngine
+        # SimpleAgentEngine uses chat() method instead of execute()
+        result = await engine.chat(request.message)
         
-        # Convert to response model
+        # Convert to response model (SimpleAgentEngine returns a dict, not AgentResponse)
         return ChatResponse(
-            success=result.success,
-            message=result.message,
+            success=result.get("success", False),
+            message=result.get("message", ""),
             events=[
                 EventSchema(
-                    event_type=e.event_type,
-                    content=e.content,
-                    timestamp=e.timestamp
+                    event_type=e.get("event_type", "unknown"),
+                    content=e.get("content", ""),
+                    timestamp=e.get("timestamp", "")
                 )
-                for e in result.events
+                for e in result.get("events", [])
             ],
-            file_changes=[
-                FileChangeSchema(
-                    filename=fc.filename,
-                    diff=fc.diff,
-                    operation=fc.operation
-                )
-                for fc in result.file_changes
-            ],
-            diffs=result.diffs,
-            error=result.error
+            file_changes=[],  # SimpleAgentEngine doesn't track file changes
+            diffs="",
+            error=result.get("error")
         )
         
     except Exception as e:
