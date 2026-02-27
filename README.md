@@ -8,31 +8,32 @@ Agentic Coding Tool powered by Aider and OpenGPU Relay.
 
 Python 3.13 is too new and many dependencies (including Aider) don't support it yet.
 
-## Local Setup (Recommended)
+## Quick Start
 
 ```bash
-# 1. Ensure you have Python 3.12
-python3.12 --version
+# Clone the repository
+git clone https://github.com/Asphyksia/OpenCoder.git
+cd OpenCoder
 
-# 2. Create virtual environment
+# Setup Backend
 python3.12 -m venv venv
-
-# 3. Activate
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate   # Windows
-
-# 4. Install dependencies
-pip install --upgrade pip
+source venv/bin/activate
 pip install -r requirements.txt
 
-# 5. Install Aider
-pip install aider-chat
+# Setup Frontend
+cd frontend
+npm install
+cd ..
 
-# 6. Set API key
-export OPENGPU_API_KEY="your-api-key-here"
-
-# 7. Run server
+# Run both services
+# Terminal 1: Backend
+source venv/bin/activate
+export OPENGPU_API_KEY="your-api-key"
 uvicorn opencoder.api.main:app --port 8000
+
+# Terminal 2: Frontend
+cd frontend
+npm run dev
 ```
 
 ## API Endpoints
