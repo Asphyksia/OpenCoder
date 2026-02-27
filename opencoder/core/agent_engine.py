@@ -708,13 +708,40 @@ class AiderCLIEngine:
         base_url = os.getenv("OPENGPU_BASE_URL", "https://relay.opengpu.network/v1")
         
         if api_key:
+            # Use OpenAI compatible endpoint
             env["OPENAI_API_KEY"] = api_key
-            env["OPENAI_API_BASE"] = f"{base_url}/openai"
-            env["ANTHROPIC_API_KEY"] = api_key
-            env["ANTHROPIC_API_BASE"] = f"{base_url}/anthropic"
-            env["OLLAMA_API_BASE"] = f"{base_url}/ollama"
+            env["OPENAI_API_BASE"] = f"{base_url}"
+            # Don't set ANTHROPIC/OLLAMA - let litellm handle it
+            env["LITELLM_API_KEY"] = api_key
+            env["LITELLM_API_BASE"] = f"{base_url}"
+            # Disable other providers to force relay
+            env["ANTHROPIC_API_KEY"] = "dummy"
+            env["OLLAMA_API_KEY"] = "dummy"
         
         return env
+    
+    def _normalize_model_name(self, model_name: str) -> str:
+        """Normalize model name for Aider.
+        
+        Aider expects model names like 'openai/gpt-4o' or 'anthropic/claude-3-opus'
+        OpenGPU returns names like 'openai/Qwen/Qwen3-Coder' which need conversion.
+        
+        Args:
+            model_name: Original model name from OpenGPU
+            
+        Returns:
+            Normalized model name for Aider.
+        """
+        # Extract provider and model from OpenGPU format
+        # e.g., 'openai/Qwen/Qwen3-Coder' -> 'qwen/qwen3-coder'
+        # e.g., 'anthropic/anthropic/claude-sonnet-4-6' -> 'anthropic/claude-sonnet-4-6'
+        parts = model_name.split('/')
+        if len(parts) >= 2:
+            provider = parts[0].lower()
+            # Remove provider prefix from name
+            model = '/'.join(parts[1:]).lower()
+            return f"{provider}/{model}"
+        return model_name.lower()
     
     async def execute(self, message: str) -> AgentResponse:
         """Execute a message using Aider CLI.
@@ -746,14 +773,19 @@ class AiderCLIEngine:
             if context_files:
                 self._add_event("system", f"Found {len(context_files)} files in repository")
             
+            # Normalize model name for Aider
+            normalized_model = self._normalize_model_name(self.model_name)
+            self._add_event("system", f"Using model: {normalized_model}")
+            
             # Build aider command
             cmd = [
                 'aider',
-                '--model', self.model_name,
+                '--model', normalized_model,
                 '--message', message,
                 '--no-auto-commits' if not self.auto_commits else '--auto-commits',
                 '--pretty',
                 '--yes',  # Auto-confirm
+                '--no-show-model-warnings',  # Suppress model warnings
             ]
             
             if self.read_only:
