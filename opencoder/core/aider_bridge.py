@@ -4,11 +4,14 @@ AiderBridge - Puente entre FastAPI y Aider CLI
 Este módulo proporciona una interfaz para ejecutar Aider CLI como subprocess,
 permitiendo usar todas las capacidades de Aider desde un backend Python 3.13.
 
-Aider se ejecuta en un entorno Python 3.12 aislado (instalado via aider-install).
-
-Referencia: https://aider.chat/docs/install.html
+IMPORTANT: The litellm patch must be imported BEFORE any litellm/aider import.
 """
 
+# FIRST: Patch litellm for OpenGPU (before any litellm imports)
+from opencoder.core.litellm_patch import patch_litellm_for_opengpu
+patch_litellm_for_opengpu()
+
+# AFTER: Normal imports
 import os
 import re
 import json
@@ -87,8 +90,10 @@ class AiderBridge:
         env["LITELLM_API_KEY"] = self.api_key
         env["LITELLM_API_BASE"] = self.base_url
         
-        # Model aliases are now dynamic - fetched from OpenGPU API
-        # No hardcoded aliases needed
+        # Prevent litellm from doing provider auto-detection
+        # This is needed for custom model names like Qwen/Qwen3-Coder
+        env["LITELLM_DROP_PARAMS"] = "true"
+        env["LITELLM_MAX_PARALLEL_REQUESTS"] = "100"
         
         return env
     
@@ -125,15 +130,26 @@ class AiderBridge:
         cmd = []
         cmd.extend(self._find_aider_command())  # Add the command executable(s)
         
-        # Handle model name - strip provider prefix if present
-        # Model names from API: "openai/Qwen/Qwen3-Coder", "ollama/llama3.2:3b"
-        # The base_url already includes "openai" so we only need the model name part
-        # Example: "openai/Qwen/Qwen3-Coder" -> "Qwen/Qwen3-Coder"
+        # Handle model name for litellm
+        # litellm needs explicit provider for unknown models like Qwen
+        # Since base_url is openai-compatible, we can try different approaches
+        # 
+        # Approach 1: Use just the model name part (e.g., "Qwen/Qwen3-Coder")
+        # This requires litellm to not do provider auto-detection
+        #
+        # Approach 2: Set LITELLM_DROP_PARAMS to skip validation
         if "/" in self.model:
-            # Extract just the model name after the provider
-            model_arg = f"--model={self.model.split('/', 1)[1]}"
+            # Extract model name after provider
+            model_to_use = self.model.split("/", 1)[1]
         else:
-            model_arg = f"--model={self.model}"
+            model_to_use = self.model
+        
+        # For litellm with custom base URLs, we need to prevent provider auto-detection
+        # by setting special environment variables
+        model_arg = f"--model={model_to_use}"
+        
+        # Add to cmd the flag to skip model warnings
+        cmd.append("--no-show-model-warnings")
         
         cmd.extend([
             model_arg,
