@@ -44,8 +44,9 @@ export interface Message {
 // -----------------------------------------------------------------------------
 
 export interface Model {
-  id: string;
+  id?: string;
   name: string;
+  display_name?: string; // Formatted name for UI (e.g., "Qwen3-Coder" instead of "openai/Qwen/Qwen3-Coder")
   provider: string;
   category?: string; // Used in UI dropdown
   type?: string; // Backend field - e.g., "text-to-text"

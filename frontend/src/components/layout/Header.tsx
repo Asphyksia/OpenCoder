@@ -18,9 +18,15 @@ import {
 export function Header() {
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const { agentStatus, selectedModel, setSelectedModel, sidebarOpen, setSidebarOpen } = useAppStore();
+  const { agentStatus, selectedModel, setSelectedModel, sidebarOpen, setSidebarOpen, availableModels } = useAppStore();
   const { models, isLoading: modelsLoading } = useModels();
   const { status, isLoading: statusLoading, error: statusError } = useStatus();
+
+  // Get display name for selected model
+  const getDisplayName = (modelName: string) => {
+    const model = models.find(m => m.name === modelName);
+    return model?.display_name || model?.name || modelName;
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -58,7 +64,7 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted transition-colors z-50">
-              <span>{selectedModel || "Loading..."}</span>
+              <span>{selectedModel ? getDisplayName(selectedModel) : "Loading..."}</span>
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -85,7 +91,7 @@ export function Header() {
                   )}
                 >
                   <div className="flex flex-col">
-                    <span>{model.name}</span>
+                    <span>{model.display_name || model.name}</span>
                     <span className="text-xs text-muted-foreground">
                       {model.provider} • {model.category || "General"}
                     </span>

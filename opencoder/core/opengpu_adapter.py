@@ -286,8 +286,14 @@ class OpenGPUAdapter:
                             # Only include text-to-text models for coding
                             if model_info.get('tag') == 'text-to-text':
                                 full_name = f"{provider}/{model_info['name']}"
+                                # Format display name: extract last part and clean up
+                                display_name = self._format_model_display_name(
+                                    provider, 
+                                    model_info['name']
+                                )
                                 models.append({
                                     "name": full_name,
+                                    "display_name": display_name,
                                     "provider": provider,
                                     "type": model_info.get('tag', 'text-to-text'),
                                     "category": category
@@ -297,6 +303,63 @@ class OpenGPUAdapter:
         except Exception as e:
             logger.error(f"Error fetching models: {e}")
             return []
+    
+    def _format_model_display_name(self, provider: str, model_name: str) -> str:
+        """Format model name for display in UI.
+        
+        Args:
+            provider: The provider name (e.g., 'ollama', 'openai', 'anthropic')
+            model_name: The model name from API
+            
+        Returns:
+            Formatted display name (e.g., 'Gpt-oss:20b', 'Qwen3-Coder')
+        """
+        # Extract the last part after / if present
+        display = model_name.split('/')[-1] if '/' in model_name else model_name
+        
+        # Remove provider prefix duplicates (e.g., 'openai/openai/gpt-5.2' -> 'gpt-5.2')
+        if provider.lower() in display.lower():
+            parts = display.split('/')
+            # Get the last meaningful part
+            for part in reversed(parts):
+                if part.lower() != provider.lower():
+                    display = part
+                    break
+        
+        # Handle specific model naming conventions
+        # Keep original casing for most part but fix common issues
+        
+        # Handle GPT models - keep "GPT" capitalized, rest lowercase
+        if display.lower().startswith('gpt'):
+            display = display.replace('GPT', 'Gpt').replace('gpt', 'Gpt')
+        
+        # Handle Llama models - keep "Llama" capitalized
+        if display.lower().startswith('llama'):
+            display = display.replace('Llama', 'Llama').replace('llama', 'Llama')
+        
+        # Handle DeepSeek models - use lowercase "deepseek" to match user preference
+        if 'deepseek' in display.lower():
+            display = display.replace('DeepSeek', 'Deepseek').replace('deepseek', 'Deepseek')
+            # Keep capital V for version numbers
+            if 'v3' in display.lower():
+                display = display.replace('v3', 'V3')
+        
+        # Handle Qwen models - keep "Qwen" capitalized
+        if 'qwen' in display.lower():
+            display = display.replace('Qwen', 'Qwen').replace('qwen', 'Qwen')
+        
+        # Handle Claude - keep capitalized
+        if 'claude' in display.lower():
+            display = display.replace('Claude', 'Claude').replace('claude', 'Claude')
+        
+        # Handle Kimi - keep capitalized
+        if 'kimi' in display.lower():
+            display = display.replace('Kimi', 'Kimi').replace('kimi', 'Kimi')
+        
+        # Ensure model sizes (like :20b, :3b) stay lowercase
+        # Already in lowercase from API, so just ensure consistency
+        
+        return display
     
     async def get_pricing(self) -> list[dict]:
         """Get pricing information from OpenGPU Relay.
