@@ -101,15 +101,25 @@ class AiderBridge:
         """Encuentra el comando de Aider instalado.
         
         Returns:
-            Lista de comandos para ejecutar Aider via uv tool.
+            Lista de comandos para ejecutar Aider via uv tool with litellm patch.
         """
         # Use absolute path to uv to ensure it's available in subprocess
         import shutil
         uv_path = shutil.which("uv") or "/home/asphyksia/.var/app/com.vscodium.codium/data/python/bin/uv"
         
-        # Use --from aider-chat since that's the installed package name
-        # The executable inside is 'aider'
-        return [uv_path, "tool", "run", "--from", "aider-chat", "aider"]
+        # Get the path to our wrapper script
+        import pathlib
+        wrapper_path = pathlib.Path(__file__).parent.parent.parent / "scripts" / "aider_with_patch.py"
+        
+        # Use uv to run our wrapper script which patches litellm before running aider
+        # We need to add dependencies (httpx, loguru) to the environment
+        return [
+            uv_path, "tool", "run",
+            "--with", "httpx",
+            "--with", "loguru",
+            "--from", "aider-chat",
+            "python", str(wrapper_path)
+        ]
     
     async def execute(
         self,
