@@ -226,7 +226,7 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
     
     # Get configuration
     repo_path = get_repo_path()
-    model_name = request.model or os.getenv("OPENGPU_MODEL", "Qwen/Qwen3-Coder")
+    model_name = request.model or os.getenv("OPENGPU_MODEL", "")
     
     try:
         # Get or create AiderBridge for session

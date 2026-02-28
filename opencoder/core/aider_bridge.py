@@ -45,7 +45,7 @@ class AiderBridge:
     def __init__(
         self,
         repo_path: str,
-        model: str = "Qwen/Qwen3-Coder",
+        model: str = "",
         api_key: Optional[str] = None,
         base_url: str = "https://relay.opengpu.network/v1",
         auto_commits: bool = True,
@@ -87,15 +87,8 @@ class AiderBridge:
         env["LITELLM_API_KEY"] = self.api_key
         env["LITELLM_API_BASE"] = self.base_url
         
-        # Model aliases para OpenGPU
-        model_aliases = {
-            "openai/Qwen/Qwen3-Coder": "Qwen/Qwen3-Coder",
-            "openai/qwen/qwen3-coder": "Qwen/Qwen3-Coder",
-            "openai/Qwen/Qwen3-Coder-32B": "Qwen/Qwen3-Coder-32B",
-            "openai/deepseek/deepseek-coder": "deepseek/deepseek-coder",
-            "openai/gpt-oss:20b": "gpt-oss:20b",
-        }
-        env["LITELLM_MODEL_ALIASES"] = json.dumps(model_aliases)
+        # Model aliases are now dynamic - fetched from OpenGPU API
+        # No hardcoded aliases needed
         
         return env
     
@@ -301,7 +294,7 @@ class AiderBridge:
 
 def create_aider_bridge(
     repo_path: str,
-    model: str = "Qwen/Qwen3-Coder",
+    model: str = "",
     api_key: Optional[str] = None,
     auto_commits: bool = True,
     read_only: bool = False,

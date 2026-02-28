@@ -57,9 +57,9 @@ class OpenGPUConfig:
         timeout: Request timeout in seconds.
         max_tokens: Maximum tokens for model responses.
     """
-    base_url: str = "https://relaygpu.com/backend/openai/v1"
+    base_url: str = "https://relay.opengpu.network/v1"
     api_key: str = ""
-    default_model: str = "Qwen/Qwen3-Coder"
+    default_model: str = ""
     timeout: float = 120.0
     max_tokens: int = 4096
 
@@ -102,7 +102,7 @@ class OpenGPUAdapter:
         return OpenGPUConfig(
             base_url=os.getenv("OPENGPU_BASE_URL", "https://relaygpu.com/backend/openai/v1"),
             api_key=os.getenv("OPENGPU_API_KEY", ""),
-            default_model=os.getenv("OPENGPU_MODEL", "gpt-4o"),
+            default_model=os.getenv("OPENGPU_MODEL", ""),
             timeout=float(os.getenv("OPENGPU_TIMEOUT", "120.0")),
             max_tokens=int(os.getenv("OPENGPU_MAX_TOKENS", "4096"))
         )
