@@ -47,7 +47,7 @@ class AiderBridge:
         repo_path: str,
         model: str = "",
         api_key: Optional[str] = None,
-        base_url: str = "https://relay.opengpu.network/v1",
+        base_url: str = "https://relaygpu.com/backend/openai/v1",
         auto_commits: bool = True,
         read_only: bool = False,
     ):
@@ -124,8 +124,19 @@ class AiderBridge:
         # Construir comando - use extend to add the command list
         cmd = []
         cmd.extend(self._find_aider_command())  # Add the command executable(s)
+        
+        # Handle model name - strip provider prefix if present
+        # Model names from API: "openai/Qwen/Qwen3-Coder", "ollama/llama3.2:3b"
+        # The base_url already includes "openai" so we only need the model name part
+        # Example: "openai/Qwen/Qwen3-Coder" -> "Qwen/Qwen3-Coder"
+        if "/" in self.model:
+            # Extract just the model name after the provider
+            model_arg = f"--model={self.model.split('/', 1)[1]}"
+        else:
+            model_arg = f"--model={self.model}"
+        
         cmd.extend([
-            f"--model=openai/{self.model}",  # Prefix openai/ para usar OPENAI_API_BASE
+            model_arg,
             f"--message={message}",
             "--yes",  # Auto-confirmar
             "--no-stream",  # Output completo al final

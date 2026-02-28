@@ -5,7 +5,8 @@ This module provides an adapter that connects OpenCoder to the OpenGPU Relay net
 It uses an OpenAI-compatible client to communicate with models hosted on OpenGPU.
 
 Assumptions about OpenGPU Relay API:
-- Base URL format: https://relay.opengpu.network/v1 (configurable)
+  - Base URL format: https://relaygpu.com/backend/openai/v1 (configurable)
+  - Note: relay.opengpu.network returns 302 redirects that don't work with litellm
 - Authentication via API key header
 - OpenAI-compatible endpoint structure (/chat/completions)
 - Supports streaming and non-streaming responses
@@ -57,7 +58,7 @@ class OpenGPUConfig:
         timeout: Request timeout in seconds.
         max_tokens: Maximum tokens for model responses.
     """
-    base_url: str = "https://relay.opengpu.network/v1"
+    base_url: str = "https://relaygpu.com/backend/openai/v1"
     api_key: str = ""
     default_model: str = ""
     timeout: float = 120.0
