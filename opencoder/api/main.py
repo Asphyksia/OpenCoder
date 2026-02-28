@@ -51,12 +51,17 @@ class AgentState:
     ) -> AgentEngine:
         """Get existing engine or create new one for session."""
         if session_id not in self.engines:
-            # Use AiderCLIEngine for real agentic coding with file editing
-            # This runs Aider as a subprocess with proper git integration
-            self.engines[session_id] = AiderCLIEngine(
+            # Use SimpleAgentEngine - it's more reliable and works with OpenGPU directly
+            # SimpleAgentEngine uses litellm directly without Aider CLI dependencies
+            from opencoder.core.opengpu_adapter import OpenGPUAdapter, AiderOpenGPUModel
+            
+            # Create adapter and model for OpenGPU
+            adapter = OpenGPUAdapter()
+            open_gpu_model = AiderOpenGPUModel(model_name, adapter)
+            
+            self.engines[session_id] = SimpleAgentEngine(
                 repo_path=repo_path,
-                model_name=model_name,
-                read_only=read_only
+                model=open_gpu_model
             )
         
         return self.engines[session_id]
@@ -205,9 +210,29 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
             read_only=request.read_only
         )
         
-        # Execute the user's message using AiderCLIEngine
-        # AiderCLIEngine uses execute() method which returns AgentResponse
-        result = await engine.execute(request.message)
+        # Execute the user's message 
+        # Check if engine has execute (AiderCLIEngine/AgentEngine) or chat (SimpleAgentEngine)
+        if hasattr(engine, 'execute'):
+            result = await engine.execute(request.message)
+        elif hasattr(engine, 'chat'):
+            # SimpleAgentEngine uses chat() method
+            chat_result = await engine.chat(request.message)
+            # Convert to AgentResponse-like format
+            from opencoder.core.agent_engine import AgentResponse, AgentEvent
+            result = AgentResponse(
+                success=chat_result.get('success', True),
+                message=chat_result.get('message', ''),
+                events=[AgentEvent(
+                    event_type='output', 
+                    content=chat_result.get('message', ''),
+                    timestamp=str(chat_result.get('timestamp', ''))
+                )],
+                file_changes=[],
+                diffs='',
+                error=chat_result.get('error')
+            )
+        else:
+            raise ValueError(f"Engine {type(engine)} has no execute or chat method")
         
         # Convert to response model (AiderCLIEngine returns AgentResponse with file changes)
         return ChatResponse(

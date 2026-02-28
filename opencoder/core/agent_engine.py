@@ -10,6 +10,7 @@ Reference: https://github.com/Aider-AI/aider
 import os
 import re
 import io
+import json
 import asyncio
 from pathlib import Path
 from typing import Any, Optional
@@ -22,8 +23,9 @@ from loguru import logger
 def _configure_litellm_early():
     """Configure litellm to use OpenGPU Relay at import time."""
     import os as _os
+    import json as _json
     _api_key = _os.getenv("OPENGPU_API_KEY", "")
-    _base_url = _os.getenv("OPENGPU_BASE_URL", "https://relay.opengpu.network/v1")
+    _base_url = _os.getenv("OPENGPU_BASE_URL", "https://relaygpu.com/backend/openai/v1")
     
     if _api_key:
         _os.environ["OPENAI_API_KEY"] = _api_key
@@ -33,11 +35,28 @@ def _configure_litellm_early():
         # Route all models through the relay
         _os.environ["OLLAMA_API_BASE"] = f"{_base_url}/ollama"
         _os.environ["ANTHROPIC_API_BASE"] = f"{_base_url}/anthropic"
+        
+        # Map model names to strip the 'openai/' prefix before sending to OpenGPU
+        # This is critical: OpenGPU expects 'Qwen/Qwen3-Coder', not 'openai/Qwen/Qwen3-Coder'
+        _model_aliases = {
+            "openai/Qwen/Qwen3-Coder": "Qwen/Qwen3-Coder",
+            "openai/qwen/qwen3-coder": "Qwen/Qwen3-Coder",
+            "openai/Qwen/Qwen3-Coder-32B": "Qwen/Qwen3-Coder-32B",
+            "openai/deepseek/deepseek-coder": "deepseek/deepseek-coder",
+            "openai/gpt-oss:20b": "gpt-oss:20b",
+        }
+        _os.environ["LITELLM_MODEL_ALIASES"] = _json.dumps(_model_aliases)
         print(f"[OpenCoder] Configured litellm: base_url={_base_url}")
 
 # Call early configuration
 _configure_litellm_early()
 del _configure_litellm_early
+
+# Add Python 3.12 site-packages to path for Aider
+import sys
+_python12_site_packages = '/home/asphyksia/OpenCoder/venv/lib/python3.12/site-packages'
+if _python12_site_packages not in sys.path:
+    sys.path.insert(0, _python12_site_packages)
 
 # Aider imports - optional, will be loaded if available
 AIDER_AVAILABLE = False
@@ -207,7 +226,7 @@ class AgentEngine:
         
         # Get API key from environment or model
         api_key = os.getenv("OPENGPU_API_KEY", "")
-        base_url = os.getenv("OPENGPU_BASE_URL", "https://relay.opengpu.network/v1")
+        base_url = os.getenv("OPENGPU_BASE_URL", "https://relaygpu.com/backend/openai/v1")
         
         # Always set these env vars for litellm
         os.environ["OPENAI_API_KEY"] = api_key
@@ -705,43 +724,44 @@ class AiderCLIEngine:
         
         # Configure for OpenGPU Relay
         api_key = os.getenv("OPENGPU_API_KEY", "")
-        base_url = os.getenv("OPENGPU_BASE_URL", "https://relay.opengpu.network/v1")
+        base_url = os.getenv("OPENGPU_BASE_URL", "https://relaygpu.com/backend/openai/v1")
         
         if api_key:
-            # Use OpenAI compatible endpoint
             env["OPENAI_API_KEY"] = api_key
-            env["OPENAI_API_BASE"] = f"{base_url}"
-            # Don't set ANTHROPIC/OLLAMA - let litellm handle it
+            env["OPENAI_API_BASE"] = base_url
             env["LITELLM_API_KEY"] = api_key
-            env["LITELLM_API_BASE"] = f"{base_url}"
-            # Disable other providers to force relay
-            env["ANTHROPIC_API_KEY"] = "dummy"
-            env["OLLAMA_API_KEY"] = "dummy"
+            env["LITELLM_API_BASE"] = base_url
+            
+            # Tell litellm to use openai provider with custom base_url
+            # This allows using model names without provider prefix
+            env["LITELLM_PROVIDER"] = "openai"
         
         return env
     
     def _normalize_model_name(self, model_name: str) -> str:
         """Normalize model name for Aider.
         
-        Aider expects model names like 'openai/gpt-4o' or 'anthropic/claude-3-opus'
-        OpenGPU returns names like 'openai/Qwen/Qwen3-Coder' which need conversion.
+        For OpenGPU relay with litellm:
+        - Aider needs the 'openai/' prefix to know which API to use
+        - OpenGPU expects the model name WITHOUT the prefix
+        - We use LITELLM_MODEL_ALIASES to map the name correctly
         
         Args:
             model_name: Original model name from OpenGPU
             
         Returns:
-            Normalized model name for Aider.
+            Model name with 'openai/' prefix for Aider/litellm.
         """
-        # Extract provider and model from OpenGPU format
-        # e.g., 'openai/Qwen/Qwen3-Coder' -> 'qwen/qwen3-coder'
-        # e.g., 'anthropic/anthropic/claude-sonnet-4-6' -> 'anthropic/claude-sonnet-4-6'
-        parts = model_name.split('/')
-        if len(parts) >= 2:
-            provider = parts[0].lower()
-            # Remove provider prefix from name
-            model = '/'.join(parts[1:]).lower()
-            return f"{provider}/{model}"
-        return model_name.lower()
+        # Remove any existing provider prefix first
+        if model_name.startswith('openai/'):
+            return model_name
+        if model_name.startswith('anthropic/'):
+            return model_name  # Keep as-is, will be handled by litellm
+        if model_name.startswith('ollama/'):
+            return model_name  # Keep as-is
+        
+        # Add openai prefix so litellm knows to use the custom endpoint
+        return f"openai/{model_name}"
     
     async def execute(self, message: str) -> AgentResponse:
         """Execute a message using Aider CLI.
@@ -777,22 +797,34 @@ class AiderCLIEngine:
             normalized_model = self._normalize_model_name(self.model_name)
             self._add_event("system", f"Using model: {normalized_model}")
             
-            # Build aider command
+            # Build aider command using the wrapper script
+            # The wrapper adds Python 3.12 site-packages before running aider
+            import os
+            wrapper_script = '/home/asphyksia/OpenCoder/scripts/aider_wrapper.py'
+            
+            # Use the Python that can find the wrapper
+            python_exe = '/home/asphyksia/OpenCoder/venv/bin/python'
+            
+            # Run aider using the wrapper script
             cmd = [
-                'aider',
+                python_exe,
+                wrapper_script,
                 '--model', normalized_model,
                 '--message', message,
                 '--no-auto-commits' if not self.auto_commits else '--auto-commits',
                 '--pretty',
-                '--yes',  # Auto-confirm
-                '--no-show-model-warnings',  # Suppress model warnings
+                '--yes',
+                '--no-show-model-warnings',
             ]
+            
+            # Note: API key and base URL are passed via environment variables in _get_env()
+            # Using --api-key/--api-base flags can cause issues with litellm model aliases
             
             if self.read_only:
                 cmd.append('--read-only')
             
             # Add context files
-            for f in context_files[:20]:  # Limit to 20 files
+            for f in context_files[:20]:
                 cmd.extend(['--file', f])
             
             self._add_event("thinking", "Processing your request...")

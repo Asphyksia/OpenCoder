@@ -11,8 +11,22 @@ export function useModels() {
       const response = await api.getModels();
       setAvailableModels(response.models);
       
-      // Always set to first available model when models are loaded
-      if (response.models.length > 0) {
+      // Filter to only show OpenGPU models (openai/ prefix or Qwen models)
+      const openGpuModels = response.models.filter(
+        (m) => m.name.startsWith("openai/") || m.name.includes("Qwen")
+      );
+      
+      // Update available models with filtered list
+      if (openGpuModels.length > 0) {
+        setAvailableModels(openGpuModels);
+        
+        // Set to Qwen/Qwen3-Coder as default
+        const qwenModel = openGpuModels.find(
+          (m) => m.name.includes("Qwen3-Coder") || m.name.toLowerCase().includes("qwen")
+        );
+        setSelectedModel(qwenModel?.name || openGpuModels[0].name);
+      } else if (response.models.length > 0) {
+        setAvailableModels(response.models);
         setSelectedModel(response.models[0].name);
       }
       

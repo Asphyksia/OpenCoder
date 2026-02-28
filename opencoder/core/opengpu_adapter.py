@@ -57,7 +57,7 @@ class OpenGPUConfig:
         timeout: Request timeout in seconds.
         max_tokens: Maximum tokens for model responses.
     """
-    base_url: str = "https://relay.opengpu.network/v1"
+    base_url: str = "https://relaygpu.com/backend/openai/v1"
     api_key: str = ""
     default_model: str = "Qwen/Qwen3-Coder"
     timeout: float = 120.0
@@ -100,7 +100,7 @@ class OpenGPUAdapter:
             OpenGPUConfig with values from environment.
         """
         return OpenGPUConfig(
-            base_url=os.getenv("OPENGPU_BASE_URL", "https://relay.opengpu.network/v1"),
+            base_url=os.getenv("OPENGPU_BASE_URL", "https://relaygpu.com/backend/openai/v1"),
             api_key=os.getenv("OPENGPU_API_KEY", ""),
             default_model=os.getenv("OPENGPU_MODEL", "gpt-4o"),
             timeout=float(os.getenv("OPENGPU_TIMEOUT", "120.0")),
@@ -119,7 +119,10 @@ class OpenGPUAdapter:
                 base_url=self.config.base_url,
                 api_key=self.config.api_key,
                 timeout=self.config.timeout,
-                max_retries=3
+                max_retries=3,
+                default_headers={
+                    "X-API-Key": self.config.api_key
+                }
             )
         return self._client
     
@@ -152,8 +155,19 @@ class OpenGPUAdapter:
         # Parse model name to extract provider
         # Format: "provider/model-name" or just "model-name"
         # Examples: "ollama/llama3.2:3b", "openai/gpt-5.2", "anthropic/claude-opus-4-6", "gpt-oss:20b"
+        # IMPORTANT: For OpenGPU relay, models like "Qwen/Qwen3-Coder" should NOT be split
+        # because "Qwen" is not a litellm provider, it's part of the model name
+        # Only split if the prefix is a known provider (openai, anthropic, ollama)
+        known_providers = ["openai", "anthropic", "ollama"]
         if "/" in model:
-            provider, model_name = model.split("/", 1)
+            potential_provider = model.split("/")[0].lower()
+            if potential_provider in known_providers:
+                provider, model_name = model.split("/", 1)
+            else:
+                # Unknown provider prefix - treat the whole thing as the model name
+                # and use openai-compatible endpoint
+                provider = "openai"
+                model_name = model
         else:
             # Default to openai-compatible endpoint if no provider specified
             provider = "openai"
