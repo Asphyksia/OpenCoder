@@ -1,0 +1,96 @@
+================================================================================
+     OPENCODER: RESUMEN EJECUTIVO - SOLUCIÓN AIDER + OPENGPU
+================================================================================
+
+PROBLEMA: SimpleAgentEngine es solo chat, NO tiene capacidades agenticas.
+CAUSA: Aider requiere Python 3.9-3.12, pero tu sistema tiene Python 3.13.
+
+================================================================================
+                           SOLUCIÓN EN 4 PASOS
+================================================================================
+
+PASO 1: INSTALAR AIDER (Python 3.12 aislado)
+--------------------------------------------
+python -m pip install aider-install
+aider-install
+
+# Verificar:
+aider --version
+
+
+PASO 2: CREAR AIDERBRIDGE
+-------------------------
+Archivo: opencoder/core/aider_bridge.py
+
+Ver código completo en: OpenCoder_Solucion_Raiz_Aider.txt (Sección 4)
+
+Clase principal:
+- AiderBridge: Ejecuta Aider como subprocess, captura output y diffs
+- AiderResult: Dataclass con resultado estructurado
+
+Métodos clave:
+- execute(message, files): Ejecuta comando de edición
+- _extract_diffs(output): Extrae diffs del output
+- _extract_files_changed(output): Extrae lista de archivos modificados
+
+
+PASO 3: ACTUALIZAR MAIN.PY
+--------------------------
+Cambios en opencoder/api/main.py:
+
+1. Import: from opencoder.core.aider_bridge import AiderBridge
+
+2. En AgentState, cambiar engines -> bridges
+
+3. En /chat endpoint, usar bridge.execute() en lugar de engine.chat()
+
+Ver código completo en: OpenCoder_Solucion_Raiz_Aider.txt (Sección 5)
+
+
+PASO 4: CONFIGURAR .ENV
+-----------------------
+OPENGPU_API_KEY=relay_sk_your_key
+OPENGPU_BASE_URL=https://relaygpu.com/backend/openai/v1
+OPENGPU_MODEL=Qwen/Qwen3-Coder
+
+================================================================================
+                           COMANDO CLAVE
+================================================================================
+
+El bridge ejecuta Aider así:
+
+aider \
+  --model=openai/Qwen/Qwen3-Coder \
+  --message="Create hello.py with hello_world function" \
+  --yes \
+  --auto-commits \
+  --no-stream
+
+Variables de entorno para el subprocess:
+- OPENAI_API_KEY=relay_sk_xxx
+- OPENAI_API_BASE=https://relaygpu.com/backend/openai/v1
+
+================================================================================
+                           RESULTADO
+================================================================================
+
+✅ Backend Python 3.13 (FastAPI) → AiderBridge → Aider CLI Python 3.12 → OpenGPU
+✅ Todas las capacidades de Aider disponibles
+✅ Edición de código real con diffs
+✅ Git integration automática
+✅ Sin reescribir código de edición
+
+================================================================================
+                           ARCHIVOS A CREAR/MODIFICAR
+================================================================================
+
+NUEVOS:
+- opencoder/core/aider_bridge.py (código en Sección 4 del doc principal)
+
+MODIFICAR:
+- opencoder/api/main.py (cambios en Sección 5 del doc principal)
+
+INSTALAR:
+- aider-install (pip install aider-install && aider-install)
+
+================================================================================

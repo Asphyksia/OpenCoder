@@ -31,16 +31,37 @@ from opencoder.models import (
 )
 from opencoder.core import OpenGPUAdapter, AiderOpenGPUModel
 from opencoder.core.agent_engine import AgentEngine, SimpleAgentEngine, AiderCLIEngine
+from opencoder.core.aider_bridge import AiderBridge, AiderResult
 
 
 # Global state management
 class AgentState:
-    """Manages the state of the agent engine."""
+    """Manages the state of the agent engine and AiderBridge."""
     
     def __init__(self) -> None:
         self.engines: Dict[str, AgentEngine] = {}
+        self.bridges: Dict[str, AiderBridge] = {}  # AiderBridge for subprocess execution
         self.adapter: Optional[OpenGPUAdapter] = None
         self.session_id: Optional[str] = None
+    
+    def get_or_create_bridge(
+        self,
+        session_id: str,
+        repo_path: str,
+        model_name: str,
+        read_only: bool = False
+    ) -> AiderBridge:
+        """Get existing bridge or create new one for session."""
+        if session_id not in self.bridges:
+            # Use AiderBridge - executes Aider CLI as subprocess
+            # This bypasses Python version compatibility issues
+            self.bridges[session_id] = AiderBridge(
+                repo_path=repo_path,
+                model=model_name,
+                read_only=read_only,
+            )
+        
+        return self.bridges[session_id]
     
     def get_or_create_engine(
         self,
@@ -70,10 +91,16 @@ class AgentState:
         """Get engine for session if exists."""
         return self.engines.get(session_id)
     
+    def get_bridge(self, session_id: str) -> Optional[AiderBridge]:
+        """Get bridge for session if exists."""
+        return self.bridges.get(session_id)
+    
     def close_session(self, session_id: str) -> None:
         """Close and remove session."""
         if session_id in self.engines:
             del self.engines[session_id]
+        if session_id in self.bridges:
+            del self.bridges[session_id]
 
 
 # Global state instance
@@ -184,7 +211,7 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
     """Send a message to the agent and receive a response.
     
     This endpoint orchestrates the interaction between the user,
-    the OpenGPU model, and Aider's coding engine.
+    the OpenGPU model, and Aider's coding engine via AiderBridge.
     
     Args:
         request: Chat request with message and optional model.
@@ -199,60 +226,39 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
     
     # Get configuration
     repo_path = get_repo_path()
-    model_name = request.model or os.getenv("OPENGPU_MODEL", "gpt-4o")
+    model_name = request.model or os.getenv("OPENGPU_MODEL", "Qwen/Qwen3-Coder")
     
     try:
-        # Get or create engine for session
-        engine = agent_state.get_or_create_engine(
+        # Get or create AiderBridge for session
+        # AiderBridge uses subprocess to run Aider CLI, bypassing Python version issues
+        bridge = agent_state.get_or_create_bridge(
             session_id=session_id,
             repo_path=repo_path,
             model_name=model_name,
             read_only=request.read_only
         )
         
-        # Execute the user's message 
-        # Check if engine has execute (AiderCLIEngine/AgentEngine) or chat (SimpleAgentEngine)
-        if hasattr(engine, 'execute'):
-            result = await engine.execute(request.message)
-        elif hasattr(engine, 'chat'):
-            # SimpleAgentEngine uses chat() method
-            chat_result = await engine.chat(request.message)
-            # Convert to AgentResponse-like format
-            from opencoder.core.agent_engine import AgentResponse, AgentEvent
-            result = AgentResponse(
-                success=chat_result.get('success', True),
-                message=chat_result.get('message', ''),
-                events=[AgentEvent(
-                    event_type='output', 
-                    content=chat_result.get('message', ''),
-                    timestamp=str(chat_result.get('timestamp', ''))
-                )],
-                file_changes=[],
-                diffs='',
-                error=chat_result.get('error')
-            )
-        else:
-            raise ValueError(f"Engine {type(engine)} has no execute or chat method")
+        # Execute the user's message via AiderBridge
+        result = await bridge.execute(request.message)
         
-        # Convert to response model (AiderCLIEngine returns AgentResponse with file changes)
+        # Convert AiderResult to ChatResponse format
         return ChatResponse(
             success=result.success,
             message=result.message,
             events=[
                 EventSchema(
-                    event_type=e.event_type,
-                    content=e.content,
-                    timestamp=e.timestamp
+                    event_type='aider_output',
+                    content=result.output[:1000] if result.output else '',  # Limit output length
+                    timestamp=""
                 )
-                for e in result.events
             ],
             file_changes=[
                 FileChangeSchema(
-                    filename=fc.filename,
-                    diff=fc.diff,
-                    operation=fc.operation
+                    filename=fc,
+                    diff=result.diffs,
+                    operation='modified'
                 )
-                for fc in result.file_changes
+                for fc in result.files_changed
             ],
             diffs=result.diffs,
             error=result.error
