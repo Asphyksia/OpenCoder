@@ -1,0 +1,52 @@
+## PROBLEMA RESUELTO: scripts/aider_wrapper.py
+
+### Qué pasó:
+El archivo `scripts/aider_wrapper.py` tenía una ruta hardcodeada específica de tu sistema:
+```python
+_python12_site_packages = '/home/asphyksia/OpenCoder/venv/lib/python3.12/site-packages'
+```
+
+Esto hacía que NO funcionara en otros sistemas (Windows, Mac, o incluso otro usuario de Linux).
+
+### Solución aplicada:
+El archivo fue reescrito para detectar automáticamente rutas de Python 3.12 en cualquier sistema:
+
+```python
+# Ahora busca en múltiples ubicaciones:
+_linux_paths = [
+    ~/.local/lib/python3.12/site-packages,
+    /usr/local/lib/python3.12/site-packages,
+    /usr/lib/python3.12/site-packages,
+]
+
+_macos_paths = [
+    ~/.local/lib/python3.12/site-packages,
+    /opt/homebrew/lib/python3.12/site-packages,
+]
+
+_windows_paths = [
+    ~/AppData/Local/Programs/Python/Python312/Lib/site-packages,
+]
+```
+
+### Acción requerida:
+```bash
+# En tu repositorio local, haz pull de los cambios:
+git pull origin main
+
+# O si tienes cambios locales, actualiza solo este archivo:
+git checkout origin/main -- scripts/aider_wrapper.py
+```
+
+### Verificar que funciona:
+```bash
+cd OpenCoder
+python scripts/aider_wrapper.py --help
+# Debería mostrar la ayuda de Aider
+```
+
+### Archivos relacionados:
+- `scripts/aider_wrapper.py` → Usado por `opencoder/core/agent_engine.py` (AiderCLIEngine)
+- `scripts/aider_with_patch.py` → Usado por `opencoder/core/aider_bridge.py` (AiderBridge)
+
+Ambos wrappers ahora son multiplataforma (Linux, macOS, Windows).

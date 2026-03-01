@@ -36,10 +36,10 @@ if not patch_loaded:
         import importlib.util
         import pathlib
         
-        # Look for litellm_patch.py in common locations
+        # Look for litellm_patch.py in common locations (dynamic paths)
+        project_root = pathlib.Path(__file__).parent.parent
         possible_paths = [
-            pathlib.Path(__file__).parent.parent / "opencoder" / "core" / "litellm_patch.py",
-            pathlib.Path("/home/asphyksia/OpenCoder/opencoder/core/litellm_patch.py"),
+            project_root / "opencoder" / "core" / "litellm_patch.py",
             pathlib.Path(os.getcwd()) / "opencoder" / "core" / "litellm_patch.py",
         ]
         
