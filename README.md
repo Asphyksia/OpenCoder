@@ -64,29 +64,29 @@ OpenCoder is an **enterprise-grade agentic coding tool** that combines the power
 ### 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         OpenCoder Architecture                       │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌──────────────┐    ┌──────────────┐                              │
-│  │   Frontend   │    │  REST API    │                              │
-│  │   Next.js    │◄──►│   FastAPI    │                              │
-│  │   Port 3000  │    │   Port 8001  │                              │
-│  └──────────────┘    └──────┬───────┘                              │
-│                             │                                        │
-│                    ┌────────▼────────┐                              │
-│                    │  AiderBridge    │                              │
-│                    │  Agent Engine   │                              │
-│                    └────────┬────────┘                              │
-│                             │                                        │
-│              ┌──────────────┼──────────────┐                        │
-│              ▼              ▼              ▼                        │
-│     ┌──────────────┐ ┌──────────────┐ ┌──────────────┐             │
-│     │   OpenGPU    │ │   LiteLLM    │ │    Git       │             │
-│     │    Relay     │ │    Patch     │ │  Integration │             │
-│     └──────────────┘ └──────────────┘ └──────────────┘             │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+                        OpenCoder Architecture
+
+
+                           ===================== +----------------+       +----------------+
+    |   Frontend     |       |  REST API      |
+    |   Next.js      | <---> |   FastAPI      |
+    |   Port 3000   |       |   Port 8001    |
+    +--------+-------+       +--------+-------+
+             |                        |
+             +----------+-------------+
+                        |
+              +---------v---------+
+              |   AiderBridge     |
+              |   Agent Engine    |
+              +---------+---------+
+                        |
+     +------------------+------------------+
+     |                  |                  |
+     v                  v                  v
++-------------+  +-------------+  +-------------+
+|   OpenGPU   |  |   LiteLLM   |  |    Git      |
+|    Relay    |  |    Patch    |  | Integration |
++-------------+  +-------------+  +-------------+
 ```
 
 ### 🔧 Technical Components
@@ -315,14 +315,20 @@ Interactive API documentation is available at:
 
 ## 🎯 Supported Models
 
-### Recommended Models for Coding
+### All Available Models
 
-| Model | Best For | Context | Speed |
-|-------|----------|---------|-------|
-| `Qwen/Qwen3-Coder` | General coding (Recommended) | 32K | ⚡⚡⚡ |
-| `deepseek-ai/DeepSeek-V3.1` | Complex reasoning | 64K | ⚡⚡ |
-| `Qwen/Qwen2.5-72B-Instruct` | General purpose | 32K | ⚡⚡ |
-| `meta-llama/Llama-3.3-70B-Instruct` | Chat & code | 8K | ⚡⚡⚡ |
+| Model | Provider | Best For |
+|-------|----------|----------|
+| `Qwen/Qwen3-Coder` | Qwen | General coding (Recommended) |
+| `deepseek-ai/DeepSeek-V3.1` | DeepSeek | Complex reasoning |
+| `qwen/qwen2.5-vl-72b-instruct` | Qwen | Vision + Coding |
+| `moonshotai/kimi-k2.5` | Moonshot | Long context |
+| `ollama/llama3.2:3b` | Ollama | Lightweight local |
+| `ollama/deepseek-r1:8b` | Ollama | Local reasoning |
+| `ollama/gpt-oss:20b` | Ollama | Large local model |
+| `anthropic/claude-opus-4-6` | Anthropic | Premium coding |
+| `anthropic/claude-sonnet-4-6` | Anthropic | Balanced |
+| `openai/gpt-5.2` | OpenAI | Latest GPT |
 
 ### Model Name Normalization
 
