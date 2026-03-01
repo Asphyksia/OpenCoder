@@ -166,6 +166,47 @@ async def health_check():
     )
 
 
+@app.get("/files", tags=["Files"])
+async def list_files():
+    """List files in the workspace repository.
+    
+    Returns a list of file paths in the current workspace.
+    
+    Returns:
+        dict with "files" key containing list of relative file paths.
+    """
+    repo_path = get_repo_path()
+    path = Path(repo_path)
+    
+    if not path.exists():
+        return {"files": []}
+    
+    # Get all files recursively, excluding common ignore patterns
+    ignore_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', '.next'}
+    ignore_patterns = {'.gitignore', 'package-lock.json'}
+    
+    files = []
+    for item in path.rglob('*'):
+        if item.is_file():
+            # Skip ignored directories
+            if any(ignore_dir in item.parts for ignore_dir in ignore_dirs):
+                continue
+            # Skip ignore patterns
+            if item.name in ignore_patterns:
+                continue
+            # Get relative path
+            try:
+                rel_path = item.relative_to(path)
+                files.append(str(rel_path))
+            except ValueError:
+                continue
+    
+    # Sort files
+    files.sort()
+    
+    return {"files": files}
+
+
 @app.get("/models", tags=["Models"])
 async def list_models():
     """List available models from OpenGPU Relay.

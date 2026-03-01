@@ -149,3 +149,27 @@ export interface Theme {
   theme: "light" | "dark" | "system";
   setTheme: (theme: "light" | "dark" | "system") => void;
 }
+
+// -----------------------------------------------------------------------------
+// Attachment Types
+// -----------------------------------------------------------------------------
+
+export interface Attachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  content?: string; // For text files
+  preview?: string; // For images
+}
+
+// -----------------------------------------------------------------------------
+// Slash Command Types
+// -----------------------------------------------------------------------------
+
+export interface SlashCommand {
+  name: string;
+  description: string;
+  action: string;
+  icon?: string;
+}
