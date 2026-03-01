@@ -39,11 +39,27 @@ def _configure_litellm_early():
         # Map model names to strip the 'openai/' prefix before sending to OpenGPU
         # This is critical: OpenGPU expects 'Qwen/Qwen3-Coder', not 'openai/Qwen/Qwen3-Coder'
         _model_aliases = {
+            # Qwen models
             "openai/Qwen/Qwen3-Coder": "Qwen/Qwen3-Coder",
             "openai/qwen/qwen3-coder": "Qwen/Qwen3-Coder",
             "openai/Qwen/Qwen3-Coder-32B": "Qwen/Qwen3-Coder-32B",
+            # DeepSeek models
             "openai/deepseek/deepseek-coder": "deepseek/deepseek-coder",
+            "openai/deepseek-ai/DeepSeek-V3.1": "deepseek-ai/DeepSeek-V3.1",
+            # Ollama models
             "openai/gpt-oss:20b": "gpt-oss:20b",
+            "openai/ollama/gpt-oss:20b": "ollama/gpt-oss:20b",
+            "openai/ollama/llama3.2:3b": "ollama/llama3.2:3b",
+            "openai/ollama/deepseek-r1:8b": "ollama/deepseek-r1:8b",
+            # Anthropic models
+            "openai/anthropic/claude-opus-4-6": "anthropic/claude-opus-4-6",
+            "openai/anthropic/claude-sonnet-4-6": "anthropic/claude-sonnet-4-6",
+            # OpenAI models
+            "openai/openai/gpt-5.2": "openai/gpt-5.2",
+            # Moonshot models
+            "openai/moonshotai/kimi-k2.5": "moonshotai/kimi-k2.5",
+            # Qwen VL models
+            "openai/qwen/qwen2.5-vl-72b-instruct": "qwen/qwen2.5-vl-72b-instruct",
         }
         _os.environ["LITELLM_MODEL_ALIASES"] = _json.dumps(_model_aliases)
         print(f"[OpenCoder] Configured litellm: base_url={_base_url}")
