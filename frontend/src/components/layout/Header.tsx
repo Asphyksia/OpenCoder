@@ -54,7 +54,7 @@ export function Header() {
           <Menu className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-2">
-          <img src="/logo.jpg" alt="OpenCoder" className="h-8 w-8 rounded-md object-contain bg-white" />
+          <img src="/logo.png" alt="OpenCoder" className="h-8 w-8 rounded-md object-contain bg-white" />
           <span className="text-xl font-bold">OpenCoder</span>
         </div>
       </div>

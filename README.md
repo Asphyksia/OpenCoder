@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="frontend/public/logo.jpg" alt="OpenCoder Logo" width="200">
+<img src="frontend/public/logo.png" alt="OpenCoder Logo" width="200">
 
 # OpenCoder
 
