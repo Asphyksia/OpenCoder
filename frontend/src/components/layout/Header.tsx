@@ -18,7 +18,7 @@ import {
 export function Header() {
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const { agentStatus, selectedModel, setSelectedModel, sidebarOpen, setSidebarOpen, settingsOpen, setSettingsOpen, availableModels, clearMessages, messages } = useAppStore();
+  const { agentStatus, selectedModel, setSelectedModel, sidebarOpen, setSidebarOpen, settingsOpen, setSettingsOpen, availableModels, clearMessages, messages, panelOpen, setPanelOpen, createConversation } = useAppStore();
   const { models, isLoading: modelsLoading } = useModels();
   const { status, isLoading: statusLoading, error: statusError } = useStatus();
 
@@ -47,9 +47,9 @@ export function Header() {
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4">
       <div className="flex items-center gap-4">
         <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="lg:hidden p-2 hover:bg-muted rounded-md"
-          aria-label="Toggle sidebar"
+          onClick={() => setPanelOpen(!panelOpen)}
+          className="p-2 hover:bg-muted rounded-md"
+          aria-label="Toggle conversations"
         >
           <Menu className="w-5 h-5" />
         </button>

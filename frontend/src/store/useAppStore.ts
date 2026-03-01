@@ -3,6 +3,17 @@ import { persist } from "zustand/middleware";
 import { AgentStatus, Message, Model } from "@/lib/types";
 import { generateId } from "@/lib/utils";
 
+// Conversation interface
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: Message[];
+  model: string;
+  createdAt: string;
+  updatedAt: string;
+  pinned: boolean;
+}
+
 interface AppStore {
   // Messages
   messages: Message[];
@@ -33,6 +44,20 @@ interface AppStore {
   setIsProcessing: (processing: boolean) => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  
+  // Conversation Panel
+  panelOpen: boolean;
+  setPanelOpen: (open: boolean) => void;
+  
+  // Conversations
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  createConversation: () => string;
+  loadConversation: (id: string) => void;
+  deleteConversation: (id: string) => void;
+  saveCurrentConversation: () => void;
+  updateConversationTitle: (id: string, title: string) => void;
+  pinConversation: (id: string) => void;
   
   // Settings
   settingsOpen: boolean;
@@ -117,6 +142,87 @@ export const useAppStore = create<AppStore>()(
         set({ sidebarOpen: open });
       },
       
+      // Conversation Panel
+      panelOpen: false,
+      setPanelOpen: (open) => {
+        set({ panelOpen: open });
+      },
+      
+      // Conversations
+      conversations: [],
+      activeConversationId: null,
+      
+      createConversation: () => {
+        const id = generateId();
+        const newConv: Conversation = {
+          id,
+          title: 'Nueva conversación',
+          messages: [],
+          model: get().selectedModel || 'Qwen/Qwen3-Coder',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          pinned: false,
+        };
+        set(state => ({
+          conversations: [newConv, ...state.conversations],
+          activeConversationId: id,
+          messages: [],
+        }));
+        return id;
+      },
+      
+      loadConversation: (id) => {
+        const conv = get().conversations.find(c => c.id === id);
+        if (conv) {
+          set({
+            activeConversationId: id,
+            messages: conv.messages,
+            selectedModel: conv.model,
+          });
+        }
+      },
+      
+      deleteConversation: (id) => {
+        set(state => ({
+          conversations: state.conversations.filter(c => c.id !== id),
+          activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
+          messages: state.activeConversationId === id ? [] : state.messages,
+        }));
+      },
+      
+      saveCurrentConversation: () => {
+        const { activeConversationId, conversations, messages, selectedModel } = get();
+        if (!activeConversationId || messages.length === 0) return;
+        
+        // Generate title from first user message
+        const firstUserMsg = messages.find(m => m.role === 'user');
+        const title = firstUserMsg?.content.slice(0, 40) || 'Conversación';
+        
+        set(state => ({
+          conversations: state.conversations.map(c => 
+            c.id === activeConversationId 
+              ? { ...c, messages, model: selectedModel, title, updatedAt: new Date().toISOString() }
+              : c
+          )
+        }));
+      },
+      
+      updateConversationTitle: (id, title) => {
+        set(state => ({
+          conversations: state.conversations.map(c =>
+            c.id === id ? { ...c, title, updatedAt: new Date().toISOString() } : c
+          )
+        }));
+      },
+      
+      pinConversation: (id) => {
+        set(state => ({
+          conversations: state.conversations.map(c =>
+            c.id === id ? { ...c, pinned: !c.pinned } : c
+          )
+        }));
+      },
+      
       // Settings
       settingsOpen: false,
       setSettingsOpen: (open) => {
@@ -146,6 +252,9 @@ export const useAppStore = create<AppStore>()(
         temperature: state.temperature,
         maxTokens: state.maxTokens,
         systemPrompt: state.systemPrompt,
+        conversations: state.conversations,
+        activeConversationId: state.activeConversationId,
+        panelOpen: state.panelOpen,
       }),
     }
   )

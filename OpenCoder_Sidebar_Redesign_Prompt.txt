@@ -1,0 +1,599 @@
+================================================================================
+                    OpenCoder - Rediseño Completo del Sidebar
+                    Prompt para Agente de VSCode
+================================================================================
+
+ CONTEXTO
+=========
+
+El usuario está descontento con el sidebar actual. Problemas identificados:
+1. "Project Files" - No tiene utilidad práctica en esa ubicación
+2. "Modified in Session" - Información poco relevante ahí
+3. "Settings" - Debería estar en otro lugar (header o menú)
+4. "Status" - Le gusta pero debería estar abajo (info secundaria)
+5. Falta sistema de conversaciones con navegación
+
+ SOLUCIÓN PROPUESTA
+==================
+
+Crear un sidebar deslizable (slide-over panel) con:
+
+1. CONVERSACIONES (Feature principal)
+   - Lista de conversaciones guardadas
+   - Crear nueva conversación
+   - Cambiar entre conversaciones
+   - Eliminar conversaciones
+   - Búsqueda en historial
+
+2. STATUS (Abajo, como footer)
+   - Estado del agente
+   - Modelo seleccionado
+   - Información del repositorio
+
+ DISEÑO VISUAL
+==============
+
+ESTRUCTURA PROPUESTA:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  HEADER                                                                     │
+│  ┌─────────┐ ┌───────────────────────────────────────────┐ ┌──────────────┐│
+│  │ ☰ Panel │ │  🖼️ OpenCoder        ● Ready             │ │ [Model] [⚙️] ││
+│  └─────────┘ └───────────────────────────────────────────┘ └──────────────┘│
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  PANEL DESLIZABLE (por defecto OCULTO)     CHAT PRINCIPAL                   │
+│  ┌──────────────────┐                      ┌────────────────────────────┐   │
+│  │ ☰ Conversations  │                      │                            │   │
+│  ├──────────────────┤                      │  👤 You: Create a file...  │   │
+│  │ + New Chat       │                      │                            │   │
+│  │ ────────────────│                      │  🤖 OpenCoder: Done!       │   │
+│  │                  │                      │                            │   │
+│  │ 🔍 Search...     │                      │                            │   │
+│  │                  │                      │                            │   │
+│  │ Today            │                      │                            │   │
+│  │  ├─ Calculator   │  ← Click para cargar │                            │   │
+│  │  └─ Timer script │                      │                            │   │
+│  │                  │                      │                            │   │
+│  │ Yesterday        │                      │                            │   │
+│  │  └─ API REST     │                      │                            │   │
+│  │                  │                      │                            │   │
+│  │ Older            │                      │                            │   │
+│  │  └─ Refactor DB  │                      │                            │   │
+│  │                  │                      │                            │   │
+│  ├──────────────────┤                      │                            │   │
+│  │ Status           │  ← Footer del panel │                            │   │
+│  │ ● Ready          │                      │                            │   │
+│  │ Model: Qwen3     │                      │                            │   │
+│  │ Repo: ./workspace│                      │                            │   │
+│  └──────────────────┘                      └────────────────────────────┘   │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │ 📎 [Attach] │ Escribe tu mensaje... / para comandos    [🔒] [Send]  │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+ COMPORTAMIENTO DEL PANEL
+========================
+
+1. ESTADO POR DEFECTO: Panel OCULTO
+   - El chat ocupa todo el ancho
+   - Botón ☰ en el header para abrir/cerrar
+   - Atajo de teclado: Ctrl+B (o Ctrl+/)
+
+2. ESTADO ABIERTO: Panel visible desde la izquierda
+   - Ancho: 280px
+   - Overlay oscuro en móvil
+   - Click fuera para cerrar
+   - Animación slide-in/out
+
+3. PERSISTENCIA:
+   - Guardar estado del panel (abierto/cerrado) en localStorage
+   - Recordar última conversación activa
+
+
+ SISTEMA DE CONVERSACIONES
+==========================
+
+ESTRUCTURA DE DATOS:
+
+interface Conversation {
+  id: string
+  title: string                    // Auto-generado del primer mensaje
+  messages: Message[]
+  model: string                    // Modelo usado
+  createdAt: string
+  updatedAt: string
+  pinned: boolean                  // Para destacar conversaciones
+  tags?: string[]                  // Opcional: etiquetas
+}
+
+STORE ADICIONAL:
+
+interface ConversationStore {
+  // Conversaciones
+  conversations: Conversation[]
+  activeConversationId: string | null
+  
+  // Acciones
+  createConversation: () => string        // Retorna nuevo ID
+  loadConversation: (id: string) => void  // Carga mensajes al store principal
+  deleteConversation: (id: string) => void
+  renameConversation: (id: string, title: string) => void
+  pinConversation: (id: string) => void
+  
+  // Persistencia
+  saveConversation: () => void            // Guarda conversación actual
+  searchConversations: (query: string) => Conversation[]
+  
+  // Agrupación
+  getGroupedConversations: () => {
+    today: Conversation[]
+    yesterday: Conversation[]
+    thisWeek: Conversation[]
+    older: Conversation[]
+  }
+}
+
+
+ COMPONENTES A CREAR
+====================
+
+1. ConversationPanel.tsx
+   - Panel deslizable completo
+   - Contiene lista de conversaciones + footer de status
+
+2. ConversationList.tsx
+   - Lista de conversaciones agrupadas por fecha
+   - Búsqueda
+   - Acciones (eliminar, renombrar, fijar)
+
+3. ConversationItem.tsx
+   - Item individual de conversación
+   - Título, fecha, preview del último mensaje
+   - Menú de acciones
+
+4. ConversationStatus.tsx
+   - Footer con estado del agente
+   - Modelo, repositorio, estado
+
+5. NewChatButton.tsx
+   - Botón prominente para nueva conversación
+   - Estilo atractivo
+
+
+ COMPONENTES A MODIFICAR
+=======================
+
+1. frontend/src/components/layout/Sidebar.tsx
+   - ELIMINAR: Project Files, Modified Files, Available Models, Settings
+   - REEMPLAZAR POR: ConversationPanel
+
+2. frontend/src/components/layout/Header.tsx
+   - Añadir botón de toggle del panel
+   - Mover settings aquí si es necesario
+
+3. frontend/src/store/useAppStore.ts
+   - Añadir sistema de conversaciones
+   - Persistir en localStorage
+
+4. frontend/src/app/page.tsx
+   - Ajustar layout para panel deslizable
+
+
+ IMPLEMENTACIÓN DEL STORE
+=========================
+
+Añadir a useAppStore.ts:
+
+```typescript
+// === CONVERSATIONS ===
+conversations: Conversation[]
+activeConversationId: string | null
+
+// Crear nueva conversación
+createConversation: () => {
+  const id = generateId()
+  const newConv: Conversation = {
+    id,
+    title: 'Nueva conversación',
+    messages: [],
+    model: get().selectedModel,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    pinned: false,
+  }
+  set(state => ({
+    conversations: [newConv, ...state.conversations],
+    activeConversationId: id,
+    messages: [],
+  }))
+  return id
+}
+
+// Cargar conversación existente
+loadConversation: (id: string) => {
+  const conv = get().conversations.find(c => c.id === id)
+  if (conv) {
+    set({
+      activeConversationId: id,
+      messages: conv.messages,
+      selectedModel: conv.model,
+    })
+  }
+}
+
+// Guardar conversación actual
+saveCurrentConversation: () => {
+  const { activeConversationId, conversations, messages, selectedModel } = get()
+  if (!activeConversationId || messages.length === 0) return
+  
+  // Generar título del primer mensaje de usuario
+  const firstUserMsg = messages.find(m => m.role === 'user')
+  const title = firstUserMsg?.content.slice(0, 40) || 'Conversación'
+  
+  set(state => ({
+    conversations: state.conversations.map(c => 
+      c.id === activeConversationId 
+        ? { ...c, messages, model: selectedModel, title, updatedAt: new Date().toISOString() }
+        : c
+    )
+  }))
+}
+
+// Eliminar conversación
+deleteConversation: (id: string) => {
+  set(state => ({
+    conversations: state.conversations.filter(c => c.id !== id),
+    activeConversationId: state.activeConversationId === id ? null : state.activeConversationId
+  }))
+}
+```
+
+ PERSISTENCIA
+=============
+
+Usar Zustand persist para guardar en localStorage:
+
+```typescript
+persist(
+  (set, get) => ({ ... }),
+  {
+    name: 'opencoder-conversations',
+    partialize: (state) => ({
+      conversations: state.conversations,
+      activeConversationId: state.activeConversationId,
+      panelOpen: state.panelOpen,
+    }),
+  }
+)
+```
+
+
+ CÓDIGO DEL COMPONENTE PRINCIPAL
+=================================
+
+ConversationPanel.tsx:
+
+```tsx
+"use client"
+
+import { useState } from "react"
+import { cn } from "@/lib/utils"
+import { useAppStore } from "@/store/useAppStore"
+import { 
+  Plus, Search, X, MoreVertical, Pin, Trash2, 
+  MessageSquare, ChevronLeft 
+} from "lucide-react"
+import { StatusBadge } from "@/components/common/StatusBadge"
+import { formatDistanceToNow } from "date-fns"
+import { es } from "date-fns/locale"
+
+export function ConversationPanel() {
+  const { 
+    panelOpen, setPanelOpen,
+    conversations,
+    activeConversationId,
+    createConversation,
+    loadConversation,
+    deleteConversation,
+    agentStatus,
+    selectedModel,
+    repoPath,
+  } = useAppStore()
+  
+  const [searchQuery, setSearchQuery] = useState("")
+  
+  // Filtrar conversaciones
+  const filteredConversations = searchQuery
+    ? conversations.filter(c => 
+        c.title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : conversations
+  
+  // Agrupar por fecha
+  const grouped = groupByDate(filteredConversations)
+  
+  if (!panelOpen) return null
+  
+  return (
+    <>
+      {/* Overlay para móvil */}
+      <div 
+        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        onClick={() => setPanelOpen(false)}
+      />
+      
+      {/* Panel */}
+      <aside className={cn(
+        "fixed lg:static inset-y-0 left-0 z-50 w-[280px]",
+        "bg-card border-r border-border flex flex-col",
+        "transform transition-transform duration-300",
+        panelOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        
+        {/* Header del panel */}
+        <div className="h-14 flex items-center justify-between px-4 border-b border-border">
+          <h2 className="font-semibold">Conversaciones</h2>
+          <button 
+            onClick={() => setPanelOpen(false)}
+            className="p-2 hover:bg-muted rounded-md lg:hidden"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        
+        {/* Botón nueva conversación */}
+        <div className="p-3">
+          <button
+            onClick={() => {
+              createConversation()
+              setPanelOpen(false)
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg
+                       bg-primary text-primary-foreground hover:bg-primary/90
+                       transition-colors font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Nueva conversación
+          </button>
+        </div>
+        
+        {/* Búsqueda */}
+        <div className="px-3 pb-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Buscar conversaciones..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-muted rounded-lg
+                       focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+        </div>
+        
+        {/* Lista de conversaciones */}
+        <div className="flex-1 overflow-y-auto px-2">
+          {Object.entries(grouped).map(([group, convs]) => (
+            convs.length > 0 && (
+              <div key={group} className="mb-4">
+                <div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase">
+                  {group}
+                </div>
+                <div className="space-y-1">
+                  {convs.map(conv => (
+                    <ConversationItem
+                      key={conv.id}
+                      conversation={conv}
+                      isActive={conv.id === activeConversationId}
+                      onSelect={() => {
+                        loadConversation(conv.id)
+                        setPanelOpen(false)
+                      }}
+                      onDelete={() => deleteConversation(conv.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          ))}
+          
+          {filteredConversations.length === 0 && (
+            <div className="text-center text-muted-foreground py-8 text-sm">
+              {searchQuery ? 'Sin resultados' : 'Sin conversaciones'}
+            </div>
+          )}
+        </div>
+        
+        {/* Footer - Status */}
+        <div className="border-t border-border p-3 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Estado</span>
+            <StatusBadge status={agentStatus} />
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Modelo</span>
+            <span className="text-xs font-mono truncate max-w-[140px]">
+              {selectedModel?.split('/').pop()}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Repositorio</span>
+            <span className="text-xs font-mono truncate max-w-[140px]">
+              {repoPath}
+            </span>
+          </div>
+        </div>
+      </aside>
+    </>
+  )
+}
+
+// Componente auxiliar para item de conversación
+function ConversationItem({ conversation, isActive, onSelect, onDelete }) {
+  const [showMenu, setShowMenu] = useState(false)
+  
+  return (
+    <div
+      onClick={onSelect}
+      className={cn(
+        "group flex items-start gap-2 p-2 rounded-lg cursor-pointer",
+        "hover:bg-muted transition-colors",
+        isActive && "bg-muted"
+      )}
+    >
+      <MessageSquare className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium truncate">
+          {conversation.title}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {formatDistanceToNow(new Date(conversation.updatedAt), { 
+            addSuffix: true, 
+            locale: es 
+          })}
+        </div>
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onDelete()
+        }}
+        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/20 rounded transition-opacity"
+      >
+        <Trash2 className="w-3 h-3 text-destructive" />
+      </button>
+    </div>
+  )
+}
+
+// Función auxiliar para agrupar por fecha
+function groupByDate(conversations: Conversation[]) {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today.getTime() - 86400000)
+  const weekAgo = new Date(today.getTime() - 7 * 86400000)
+  
+  return {
+    'Hoy': conversations.filter(c => new Date(c.updatedAt) >= today),
+    'Ayer': conversations.filter(c => {
+      const date = new Date(c.updatedAt)
+      return date >= yesterday && date < today
+    }),
+    'Esta semana': conversations.filter(c => {
+      const date = new Date(c.updatedAt)
+      return date >= weekAgo && date < yesterday
+    }),
+    'Anteriores': conversations.filter(c => new Date(c.updatedAt) < weekAgo),
+  }
+}
+```
+
+
+ CAMBIOS EN EL HEADER
+=====================
+
+Añadir botón de toggle:
+
+```tsx
+// En Header.tsx, añadir:
+<button
+  onClick={() => setPanelOpen(!panelOpen)}
+  className={cn(
+    "p-2 hover:bg-muted rounded-md transition-colors",
+    panelOpen && "bg-muted"
+  )}
+  aria-label="Toggle conversation panel"
+>
+  <Menu className="w-5 h-5" />
+</button>
+```
+
+
+ MODIFICACIONES EN PAGE.TSX
+============================
+
+```tsx
+// page.tsx actualizado
+export default function Home() {
+  return (
+    <div className="flex flex-col h-screen">
+      <Header />
+      <div className="flex flex-1 overflow-hidden relative">
+        <ConversationPanel />  {/* Panel deslizable */}
+        <main className="flex-1 overflow-hidden">
+          <ChatContainer />
+        </main>
+      </div>
+    </div>
+  )
+}
+```
+
+
+ ATAJOS DE TECLADO
+==================
+
+Añadir en el layout o en un hook:
+
+```tsx
+import { useEffect } from "react"
+import { useAppStore } from "@/store/useAppStore"
+
+export function useKeyboardShortcuts() {
+  const { panelOpen, setPanelOpen, createConversation } = useAppStore()
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+B o Ctrl+/ para toggle del panel
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === '/')) {
+        e.preventDefault()
+        setPanelOpen(!panelOpen)
+      }
+      
+      // Ctrl+N para nueva conversación
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault()
+        createConversation()
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [panelOpen, setPanelOpen, createConversation])
+}
+```
+
+
+ RESUMEN DE ARCHIVOS
+====================
+
+CREAR:
+- frontend/src/components/layout/ConversationPanel.tsx
+- frontend/src/components/conversation/ConversationList.tsx
+- frontend/src/components/conversation/ConversationItem.tsx
+- frontend/src/hooks/useKeyboardShortcuts.ts
+
+MODIFICAR:
+- frontend/src/store/useAppStore.ts (añadir sistema de conversaciones)
+- frontend/src/components/layout/Header.tsx (botón toggle)
+- frontend/src/app/page.tsx (nuevo layout)
+
+ELIMINAR:
+- Secciones "Project Files", "Modified Files", "Available Models" del Sidebar
+
+
+ PRIORIDAD
+==========
+
+1. ALTA: Modificar store para sistema de conversaciones
+2. ALTA: Crear ConversationPanel con persistencia
+3. MEDIA: Añadir atajos de teclado
+4. BAJA: Animaciones y polish visual
+
+================================================================================
+                         FIN DEL PROMPT
+================================================================================
