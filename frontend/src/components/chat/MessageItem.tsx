@@ -6,6 +6,7 @@ import { formatDuration, formatTimestamp } from "@/lib/utils";
 import { LoadingDots } from "@/components/common/LoadingDots";
 import { AgentEvents } from "@/components/agent/AgentEvents";
 import { DiffViewer } from "@/components/agent/DiffViewer";
+import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { Bot, User, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 
 interface MessageItemProps {
@@ -80,7 +81,7 @@ export function MessageItem({ message }: MessageItemProps) {
 
         {/* User message content */}
         {isUser ? (
-          <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+          <MarkdownRenderer content={message.content} />
         ) : (
           <div className="space-y-4">
             {/* Error message */}
@@ -98,7 +99,7 @@ export function MessageItem({ message }: MessageItemProps) {
 
             {/* Main response content */}
             {message.content && (
-              <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+              <MarkdownRenderer content={message.content} />
             )}
 
             {/* File changes summary */}

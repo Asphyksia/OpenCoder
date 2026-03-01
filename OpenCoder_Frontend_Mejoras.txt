@@ -1,0 +1,752 @@
+================================================================================
+                    OpenCoder Frontend - Propuesta de Mejoras
+                    Análisis y Recomendaciones de Diseño
+================================================================================
+
+ Fecha: 2026-03-01
+ Estado: Propuesta
+ Prioridad: Alta
+
+================================================================================
+                    1. PROBLEMAS IDENTIFICADOS
+================================================================================
+
+1.1 DISEÑO Y TIPOGRAFÍA
+------------------------
+❌ Texto plano sin jerarquía visual clara
+❌ Falta de espaciado consistente (padding, margin)
+❌ No hay renderizado de Markdown en los mensajes
+❌ Código sin syntax highlighting
+❌ Colores poco contrastantes en algunos elementos
+❌ El Empty State es muy básico y poco atractivo
+
+1.2 SIDEBAR (Panel Izquierdo)
+------------------------------
+❌ Lista de modelos redundante (ya está en el Header)
+❌ Sección "Modified Files" confusa - ¿para qué sirve?
+❌ No hay navegación real (historial de sesiones, proyectos)
+❌ No es colapsable en desktop
+❌ Falta contexto sobre qué hace cada sección
+
+1.3 FUNCIONALIDADES FALTANTES
+-----------------------------
+❌ Botón "Adjuntar archivos" deshabilitado (placeholder)
+❌ No hay historial de conversaciones
+❌ No hay gestión de sesiones
+❌ No hay vista previa de archivos del proyecto
+❌ No hay atajos de teclado
+❌ No hay streaming de respuestas
+❌ No hay cancelación de operaciones en curso
+❌ No hay configuración de parámetros del modelo (temperature, etc.)
+
+1.4 EXPERIENCIA DE USUARIO
+--------------------------
+❌ No hay feedback visual durante operaciones largas
+❌ Los errores no son claros
+❌ No hay confirmación antes de acciones destructivas
+❌ No hay tooltips explicativos
+❌ El input no soporte multilinea correctamente
+❌ No hay autocompletado de comandos
+
+================================================================================
+                    2. PROPUESTA DE REDISEÑO
+================================================================================
+
+2.1 NUEVA ESTRUCTURA DE LAYOUT
+-------------------------------
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  HEADER                                                                 │
+│  ┌─────────┐ ┌─────────────────────────────────┐ ┌───────────────────┐ │
+│  │ ☰ Menu  │ │  OpenCoder        ● Ready       │ │ [Model ▼] [☀] [⚙]│ │
+│  └─────────┘ └─────────────────────────────────┘ └───────────────────┘ │
+├─────────────────────────────────────────────────────────────────────────┤
+│        │                                                                 │
+│  SIDE  │                    CHAT AREA                                    │
+│  BAR   │  ┌─────────────────────────────────────────────────────────┐   │
+│        │  │                                                         │   │
+│  ┌───┐ │  │  👤 You: Create a Python function...                   │   │
+│  │💬 │ │  │                                                         │   │
+│  │New│ │  │  🤖 OpenCoder: I'll create that for you...             │   │
+│  └───┘ │  │  ┌─────────────────────────────────────────────┐       │   │
+│        │  │  │ 📁 hello.py                           [+][-]│       │   │
+│  History│  │  │ def fibonacci(n):                           │       │   │
+│  ├─────┤│  │  │     if n <= 1:                              │       │   │
+│  │Hoy  ││  │  │         return n                            │       │   │
+│  │ ├── ││  │  │     return fibonacci(n-1) + fibonacci(n-2)  │       │   │
+│  │ │←  ││  │  └─────────────────────────────────────────────┘       │   │
+│  │ └── ││  │                                                         │   │
+│  │Ayer ││  │  ✅ Created: hello.py                                  │   │
+│  └─────┘│  │                                                         │   │
+│        │  └─────────────────────────────────────────────────────────┘   │
+│  Files  │                                                                 │
+│  ├─────┤│  ┌─────────────────────────────────────────────────────────┐ │
+│  │📄py ││  │ 📎 [Attach] │ Write a message...           [🔒] [Send] │ │
+│  │📄js ││  └─────────────────────────────────────────────────────────┘ │
+│  └─────┘│                                                                 │
+└────────┴─────────────────────────────────────────────────────────────────┘
+
+
+2.2 SIDEBAR REDISEÑADO
+----------------------
+
+ACTUAL (Problemático):
+┌──────────────────┐
+│ Session Status   │
+├──────────────────┤
+│ Status: Ready    │
+│ Model: Qwen/...  │
+│ Repo: ./work...  │
+│ Events: 0        │
+│ Changes: 0 files │
+├──────────────────┤
+│ Modified Files   │  ← Confuso, ¿para qué?
+│ (none)           │
+├──────────────────┤
+│ Available Models │  ← Redundante con Header
+│ - Qwen/...       │
+│ - DeepSeek/...   │
+│ - ...            │
+└──────────────────┘
+
+PROPUESTO (Funcional):
+┌──────────────────┐
+│ 💬 New Chat    + │  ← Acción principal
+├──────────────────┤
+│ 📜 History       │
+│   ├─ Today       │
+│   │  ├─ Session 1│  ← Click para cargar
+│   │  └─ Session 2│
+│   └─ Yesterday   │
+│      └─ Session 3│
+├──────────────────┤
+│ 📁 Project Files │  ← Archivos del workspace
+│   ├─ 📄 main.py  │  ← Click para añadir al contexto
+│   ├─ 📄 utils.py │
+│   └─ 📂 src/     │
+├──────────────────┤
+│ ⚙️ Settings      │
+│   • Model        │
+│   • Temperature  │
+│   • Workspace    │
+└──────────────────┘
+
+
+2.3 ÁREA DE CHAT MEJORADA
+-------------------------
+
+MENSAJE ACTUAL (Básico):
+┌─────────────────────────────────────────────┐
+│ 🤖 OpenCoder • Qwen/Qwen3-Coder • 10:30    │
+│ I'll create that function for you...       │
+│ Files changed:                             │
+│ [M] hello.py                               │
+│ diff --git...                              │
+└─────────────────────────────────────────────┘
+
+MENSAJE PROPUESTO (Rich):
+┌─────────────────────────────────────────────┐
+│ 🤖 OpenCoder • Qwen3-Coder • 10:30    ✓ ✓✗ │ ← Acciones
+├─────────────────────────────────────────────┤
+│ I'll create that function for you...       │
+│                                             │
+│ 💭 Thinking: Creating fibonacci function... │ ← Sección colapsable
+│                                             │
+│ 📝 Code Generated:                          │
+│ ┌─────────────────────────────────────────┐│
+│ │ 📄 hello.py                  [📋] [👁️] ││ ← File header
+│ │  1 │ def fibonacci(n):                  ││
+│ │  2 │     """Calculate fibonacci number"""││
+│ │  3 │     if n <= 1:                     ││
+│ │  4 │         return n                   ││
+│ │  5 │     return fibonacci(n-1) + fib... ││
+│ └─────────────────────────────────────────┘│
+│                                             │
+│ 📊 Summary:                                 │
+│ ✅ Created: hello.py (12 lines)            │
+│ ✅ Applied to workspace                     │
+│                                             │
+│ 🔧 Actions:                                 │
+│ [View Diff] [Undo] [Apply to another file] │
+└─────────────────────────────────────────────┘
+
+================================================================================
+                    3. MEJORAS ESPECÍFICAS
+================================================================================
+
+3.1 RENDERIZADO DE MARKDOWN
+---------------------------
+PRIORIDAD: Alta
+
+Instalar y configurar react-markdown con plugins:
+- syntax-highlighting (rehype-highlight)
+- GFM support (remark-gfm)
+- Code blocks con copiar
+
+Ejemplo de implementación:
+
+```tsx
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
+import 'highlight.js/styles/github-dark.css'
+
+function MarkdownRenderer({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeHighlight]}
+      components={{
+        code: CodeBlock,  // Componente personalizado
+        pre: PreBlock,    // Wrapper con copiar
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  )
+}
+```
+
+
+3.2 SISTEMA DE ARCHIVOS ADJUNTOS
+--------------------------------
+PRIORIDAD: Alta
+
+Funcionalidades:
+- Drag & drop de archivos
+- Selección desde el explorador
+- Vista previa de archivos adjuntos
+- Indicación de archivos en contexto
+
+Estados visuales:
+┌─────────────────────────────────────────────┐
+│ 📎 Attached files:                          │
+│ ┌─────────────────────────────────────────┐ │
+│ │ 📄 main.py (2.3 KB)              [ ✕ ] │ │
+│ │ 📄 utils.py (1.1 KB)             [ ✕ ] │ │
+│ └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+
+Implementación:
+```tsx
+interface Attachment {
+  id: string
+  name: string
+  size: number
+  type: 'file' | 'image'
+  content?: string  // Para archivos de texto
+  preview?: string  // Para imágenes
+}
+
+// En el store
+attachments: Attachment[]
+addAttachment: (file: File) => Promise<void>
+removeAttachment: (id: string) => void
+clearAttachments: () => void
+```
+
+
+3.3 HISTORIAL DE CONVERSACIONES
+-------------------------------
+PRIORIDAD: Media
+
+Estructura de datos:
+```tsx
+interface Conversation {
+  id: string
+  title: string          // Auto-generado del primer mensaje
+  messages: Message[]
+  createdAt: string
+  updatedAt: string
+  model: string
+  filesUsed: string[]    // Archivos que estuvieron en contexto
+}
+
+// Persistencia local
+const storage = {
+  conversations: Conversation[]
+  activeConversationId: string | null
+}
+```
+
+Funcionalidades:
+- Guardar automáticamente cada conversación
+- Buscar en historial
+- Eliminar conversaciones
+- Exportar conversación (Markdown/JSON)
+
+
+3.4 INDICADOR DE PROCESAMIENTO
+-----------------------------
+PRIORIDAD: Alta
+
+Problema actual: Solo muestra "Processing..." básico
+
+Propuesta:
+┌─────────────────────────────────────────────┐
+│ 🤖 OpenCoder                                │
+│ ┌─────────────────────────────────────────┐ │
+│ │ ████████████░░░░░░░░ Analyzing code... │ │
+│ └─────────────────────────────────────────┘ │
+│                                             │
+│ 💭 Steps:                                   │
+│   ✓ Analyzing your request                  │
+│   ✓ Reading file context                    │
+│   ◐ Generating code...                      │
+│   ○ Applying changes                        │
+│                                             │
+│ ⏱️ Elapsed: 12s   [Cancel]                 │
+└─────────────────────────────────────────────┘
+
+
+3.5 VISTA DE ARCHIVOS DEL PROYECTO
+----------------------------------
+PRIORIDAD: Media
+
+Nueva sección en Sidebar:
+
+┌──────────────────────────┐
+│ 📁 Project Files         │
+├──────────────────────────┤
+│ 📂 src/                  │
+│   ├─ 📄 main.py     [+]  │  ← Click para añadir al contexto
+│   ├─ 📄 utils.py    [+]  │
+│   └─ 📂 components/      │
+│       └─ 📄 ui.py   [+]  │
+│ 📂 tests/                │
+│   └─ 📄 test_main.py [+] │
+│ 📄 README.md        [+]  │
+└──────────────────────────┘
+
+Implementación:
+- Endpoint /files para listar archivos del workspace
+- Filtros por extensión
+- Búsqueda de archivos
+- Indicación de archivos ya en contexto
+
+
+3.6 CONFIGURACIÓN DE MODELO
+---------------------------
+PRIORIDAD: Media
+
+Panel de configuración:
+
+┌─────────────────────────────────────────────┐
+│ ⚙️ Model Configuration                      │
+├─────────────────────────────────────────────┤
+│ Model: [Qwen/Qwen3-Coder          ▼]       │
+│                                             │
+│ Temperature: ────●────────── 0.7           │
+│               0.0              2.0          │
+│                                             │
+│ Max Tokens:   [4096          ]             │
+│                                             │
+│ ☑️ Auto-commit changes                      │
+│ ☐ Stream responses                          │
+│ ☑️ Show thinking process                    │
+│                                             │
+│ System Prompt:                              │
+│ ┌─────────────────────────────────────────┐│
+│ │ You are a helpful coding assistant...   ││
+│ └─────────────────────────────────────────┘│
+│                                             │
+│        [Reset] [Apply]                      │
+└─────────────────────────────────────────────┘
+
+
+3.7 ATAJOS DE TECLADO
+--------------------
+PRIORIDAD: Baja
+
+| Atajo           | Acción                              |
+|-----------------|-------------------------------------|
+| Ctrl/Cmd + N    | Nueva conversación                  |
+| Ctrl/Cmd + S    | Guardar conversación                |
+| Ctrl/Cmd + O    | Abrir archivo                       |
+| Ctrl/Cmd + K    | Limpiar chat                        |
+| Ctrl/Cmd + /    | Toggle sidebar                      |
+| Ctrl/Cmd + .    | Abrir configuración                 |
+| Escape          | Cancelar operación / Cerrar modal   |
+| Ctrl/Cmd + Z    | Deshacer último cambio (si hay)     |
+
+Implementación:
+```tsx
+import { useEffect } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
+
+function useKeyboardShortcuts() {
+  const { newConversation, toggleSidebar } = useAppStore()
+  
+  useHotkeys('ctrl+n, cmd+n', () => newConversation())
+  useHotkeys('ctrl+/, cmd+/', () => toggleSidebar())
+  // ...
+}
+```
+
+
+3.8 TOOLTIPS Y AYUDA
+-------------------
+PRIORIDAD: Baja
+
+Añadir tooltips explicativos:
+- En cada botón de acción
+- En indicadores de estado
+- En configuraciones
+
+Ejemplo:
+```tsx
+<Tooltip>
+  <TooltipTrigger>
+    <Button variant="ghost" size="icon">
+      <Lock className="w-4 h-4" />
+    </Button>
+  </TooltipTrigger>
+  <TooltipContent>
+    <p>Read-only mode: No files will be modified</p>
+    <p className="text-xs text-muted-foreground">
+      Changes will only be previewed
+    </p>
+  </TooltipContent>
+</Tooltip>
+```
+
+
+================================================================================
+                    4. MEJORAS DE UI/UX
+================================================================================
+
+4.1 EMPTY STATE MEJORADO
+------------------------
+
+ACTUAL:
+┌─────────────────────────────────────────────┐
+│                                             │
+│         [Icono]                             │
+│    Start a conversation                     │
+│    Send a message to start...              │
+│                                             │
+│    Example prompts:                         │
+│    • Create a Python function...           │
+│    • Add error handling...                  │
+│    • Refactor this code...                  │
+│                                             │
+└─────────────────────────────────────────────┘
+
+PROPUESTO:
+┌─────────────────────────────────────────────┐
+│                                             │
+│     🚀 Welcome to OpenCoder                 │
+│                                             │
+│     Your AI-powered coding assistant        │
+│     powered by Aider + OpenGPU              │
+│                                             │
+│ ┌─────────────────────────────────────────┐ │
+│ │ 🎯 Quick Actions                        │ │
+│ │                                         │ │
+│ │ [📝 Create new file] [🐛 Fix a bug]    │ │
+│ │ [♻️ Refactor code]   [📚 Add docs]     │ │
+│ └─────────────────────────────────────────┘ │
+│                                             │
+│ ┌─────────────────────────────────────────┐ │
+│ │ 💡 Try asking:                          │ │
+│ │                                         │ │
+│ │ "Create a FastAPI endpoint for users"   │ │
+│ │ "Add unit tests for main.py"            │ │
+│ │ "Explain this code: [paste code]"       │ │
+│ └─────────────────────────────────────────┘ │
+│                                             │
+│ Status: ● Connected to OpenGPU              │
+│ Model: Qwen/Qwen3-Coder (32K context)      │
+│                                             │
+└─────────────────────────────────────────────┘
+
+
+4.2 COLORES Y CONTRASTE
+-----------------------
+
+Problemas actuales:
+- Texto secundario poco legible
+- Bordes poco visibles
+- Estados de error poco claros
+
+Propuesta de paleta mejorada:
+```css
+:root {
+  /* Texto */
+  --text-primary: hsl(210, 40%, 98%);
+  --text-secondary: hsl(215, 20%, 75%);
+  --text-muted: hsl(215, 16%, 50%);
+  
+  /* Estados */
+  --success: hsl(142, 71%, 45%);
+  --warning: hsl(38, 92%, 50%);
+  --error: hsl(0, 84%, 60%);
+  --info: hsl(199, 89%, 48%);
+  
+  /* Backgrounds */
+  --bg-elevated: hsl(222, 47%, 15%);
+  --bg-sunken: hsl(222, 47%, 8%);
+}
+```
+
+
+4.3 ANIMACIONES Y TRANSICIONES
+------------------------------
+
+Añadir transiciones suaves:
+```css
+/* Transiciones base */
+.transition-base {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Animación de mensaje entrante */
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Typing indicator */
+@keyframes typing {
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
+}
+```
+
+
+4.4 RESPONSIVE DESIGN
+---------------------
+
+Mejoras para móvil:
+- Sidebar como drawer (actualmente así, pero mejorar)
+- Header simplificado
+- Input always visible
+- Gestos para navegar
+
+```tsx
+// Breakpoints
+const breakpoints = {
+  sm: '640px',   // Móvil
+  md: '768px',   // Tablet
+  lg: '1024px',  // Desktop
+  xl: '1280px',  // Large desktop
+}
+```
+
+
+================================================================================
+                    5. NUEVAS FUNCIONALIDADES
+================================================================================
+
+5.1 STREAMING DE RESPUESTAS
+---------------------------
+PRIORIDAD: Alta
+
+El backend no soporta streaming actualmente. Propuesta:
+
+Backend (FastAPI):
+```python
+from fastapi.responses import StreamingResponse
+
+@app.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    async def generate():
+        async for chunk in aider_bridge.execute_stream(request.message):
+            yield f"data: {json.dumps(chunk)}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+```
+
+Frontend:
+```tsx
+const sendMessage = async (message: string) => {
+  const response = await fetch('/chat/stream', {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  })
+  
+  const reader = response.body?.getReader()
+  const decoder = new TextDecoder()
+  
+  while (reader) {
+    const { done, value } = await reader.read()
+    if (done) break
+    
+    const chunk = decoder.decode(value)
+    // Update message content incrementally
+    appendToMessage(chunk)
+  }
+}
+```
+
+
+5.2 SISTEMA DE COMANDOS
+-----------------------
+PRIORIDAD: Media
+
+Comandos especiales con prefijo /:
+
+| Comando         | Descripción                    |
+|-----------------|--------------------------------|
+| /help           | Mostrar ayuda                  |
+| /clear          | Limpiar chat                   |
+| /files          | Listar archivos del proyecto   |
+| /add <file>     | Añadir archivo al contexto     |
+| /remove <file>  | Quitar archivo del contexto    |
+| /undo           | Deshacer último cambio         |
+| /model <name>   | Cambiar modelo                 |
+| /settings       | Abrir configuración            |
+
+Parser de comandos:
+```tsx
+function parseCommand(input: string): Command | null {
+  if (!input.startsWith('/')) return null
+  
+  const [cmd, ...args] = input.slice(1).split(' ')
+  
+  return {
+    type: cmd as CommandType,
+    args,
+    raw: input
+  }
+}
+```
+
+
+5.3 VISTA DE DIFERENCIAS MEJORADA
+--------------------------------
+PRIORIDAD: Media
+
+Diff viewer con:
+- Side-by-side view
+- Line numbers
+- Syntax highlighting
+- Minimap
+- Collapse unchanged regions
+
+```tsx
+interface DiffViewerProps {
+  oldContent: string
+  newContent: string
+  filename: string
+  viewMode: 'unified' | 'split'
+}
+```
+
+
+5.4 NOTIFICACIONES
+------------------
+PRIORIDAD: Baja
+
+Sistema de notificaciones toast:
+
+```tsx
+import { toast } from 'sonner'
+
+// Éxito
+toast.success('File created successfully')
+
+// Error
+toast.error('Failed to connect to API')
+
+// Progreso
+toast.loading('Processing...', {
+  action: {
+    label: 'Cancel',
+    onClick: () => cancelOperation()
+  }
+})
+```
+
+
+================================================================================
+                    6. PLAN DE IMPLEMENTACIÓN
+================================================================================
+
+FASE 1: Fundamentos (Semana 1)
+------------------------------
+□ Instalar react-markdown + plugins
+□ Implementar syntax highlighting
+□ Mejorar tipografía y espaciado
+□ Rediseñar Empty State
+□ Añadir animaciones básicas
+
+FASE 2: Sidebar (Semana 1-2)
+----------------------------
+□ Eliminar lista de modelos redundante
+□ Implementar historial de conversaciones
+□ Añadir vista de archivos del proyecto
+□ Mejorar colapso/expandir en móvil
+
+FASE 3: Funcionalidades Core (Semana 2-3)
+-----------------------------------------
+□ Sistema de adjuntar archivos funcional
+□ Mejorar feedback de procesamiento
+□ Implementar comandos con /
+□ Añadir atajos de teclado
+
+FASE 4: Avanzado (Semana 3-4)
+-----------------------------
+□ Streaming de respuestas (requiere backend)
+□ Sistema de configuración de modelo
+□ Notificaciones toast
+□ Exportar conversaciones
+
+================================================================================
+                    7. DEPENDENCIAS A INSTALAR
+================================================================================
+
+```json
+{
+  "dependencies": {
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0",
+    "rehype-highlight": "^7.0.0",
+    "highlight.js": "^11.9.0",
+    "react-hotkeys-hook": "^4.5.0",
+    "sonner": "^1.4.0",
+    "date-fns": "^3.3.0",
+    "lodash.debounce": "^4.0.8"
+  }
+}
+```
+
+================================================================================
+                    8. ARCHIVOS A MODIFICAR/CREAR
+================================================================================
+
+MODIFICAR:
+- frontend/src/app/globals.css
+- frontend/src/app/page.tsx
+- frontend/src/components/chat/ChatContainer.tsx
+- frontend/src/components/chat/MessageItem.tsx
+- frontend/src/components/chat/MessageInput.tsx
+- frontend/src/components/layout/Sidebar.tsx
+- frontend/src/components/layout/Header.tsx
+- frontend/src/store/useAppStore.ts
+- frontend/src/lib/types.ts
+
+CREAR:
+- frontend/src/components/chat/MarkdownRenderer.tsx
+- frontend/src/components/chat/CodeBlock.tsx
+- frontend/src/components/chat/TypingIndicator.tsx
+- frontend/src/components/chat/ProcessingStatus.tsx
+- frontend/src/components/chat/CommandPalette.tsx
+- frontend/src/components/layout/ConversationList.tsx
+- frontend/src/components/layout/ProjectFiles.tsx
+- frontend/src/components/common/FileAttachment.tsx
+- frontend/src/components/common/Toast.tsx
+- frontend/src/components/settings/SettingsPanel.tsx
+- frontend/src/hooks/useConversations.ts
+- frontend/src/hooks/useFiles.ts
+- frontend/src/hooks/useKeyboardShortcuts.ts
+
+================================================================================
+                    FIN DEL DOCUMENTO
+================================================================================
