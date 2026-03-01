@@ -93,9 +93,6 @@ export function ChatContainer() {
       {/* Export buttons */}
       {messages.length > 0 && (
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30">
-          <span className="text-xs text-muted-foreground">
-            {messages.length} messages
-          </span>
           <div className="ml-auto flex items-center gap-1">
             <button
               onClick={exportToJson}

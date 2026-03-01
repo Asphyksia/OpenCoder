@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="frontend/public/logo.jpg" alt="OpenCoder Logo" width="200">
+
 # OpenCoder
 
 **Enterprise-Grade Agentic Coding Tool**
