@@ -213,6 +213,9 @@ class AiderBridge:
             # Parsear resultado
             success = process.returncode == 0
             
+            # Limpiar output de mensajes internos de Aider
+            clean_output = self._clean_aider_output(output)
+            
             # Extraer diffs del output
             diffs = self._extract_diffs(output)
             
@@ -224,7 +227,7 @@ class AiderBridge:
                 return AiderResult(
                     success=True,
                     message="Comando ejecutado correctamente",
-                    output=output,
+                    output=clean_output,
                     diffs=diffs,
                     files_changed=files_changed,
                     error=None
@@ -312,6 +315,42 @@ class AiderBridge:
                     files.add(match)
         
         return list(files)
+    
+    def _clean_aider_output(self, output: str) -> str:
+        """Limpia el output de mensajes internos de Aider."""
+        # Líneas a eliminar
+        ignore_patterns = [
+            "Repo-map can't include",
+            "Based on your request",
+            "Tokens:",
+            "The most likely file",
+            "Please add this file",
+            "to the chat so I can propose",
+            "Has it been deleted",
+            "from the file system",
+            "but not from git?",
+            "Git repo:",
+            "with",
+            "files",
+            "Repo-map:",
+            "using",
+            "auto refresh",
+        ]
+        
+        lines = output.split('\n')
+        cleaned_lines = []
+        skip_next = False
+        
+        for i, line in enumerate(lines):
+            # Saltar líneas que empiezan con patrones ignore
+            if any(line.strip().startswith(p) for p in ignore_patterns if not p.startswith("with")):
+                continue
+            # Saltar líneas en blanco consecutivas
+            if line.strip() == "" and (i == 0 or lines[i-1].strip() == ""):
+                continue
+            cleaned_lines.append(line)
+        
+        return '\n'.join(cleaned_lines).strip()
     
     async def chat(self, message: str) -> AiderResult:
         """
