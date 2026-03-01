@@ -13,6 +13,7 @@ Endpoints:
 
 import os
 import uuid
+import datetime
 from typing import Dict, Optional
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -227,6 +228,73 @@ async def list_models():
         )
 
 
+# In-memory event storage for streaming
+class EventStream:
+    def __init__(self):
+        self.sessions: dict[str, list[dict]] = {}
+    
+    def add_event(self, session_id: str, event: dict):
+        if session_id not in self.sessions:
+            self.sessions[session_id] = []
+        self.sessions[session_id].append(event)
+    
+    def get_events(self, session_id: str) -> list[dict]:
+        return self.sessions.get(session_id, [])
+    
+    def clear(self, session_id: str):
+        if session_id in self.sessions:
+            del self.sessions[session_id]
+
+event_stream = EventStream()
+
+
+@app.get("/events/stream", tags=["Events"])
+async def stream_events(session_id: str):
+    """Stream events for a session using Server-Sent Events.
+    
+    This endpoint provides real-time updates about agent processing,
+    including thinking, file changes, and completion status.
+    
+    Args:
+        session_id: Session identifier to stream events for.
+    
+    Returns:
+        Server-Sent Events stream with event updates.
+    """
+    from fastapi.responses import StreamingResponse
+    import asyncio
+    import json
+    
+    async def event_generator():
+        # Send initial connection event
+        yield f"event: connected\ndata: {json.dumps({'status': 'connected', 'session_id': session_id})}\n\n"
+        
+        # Track last event index
+        last_index = 0
+        
+        while True:
+            events = event_stream.get_events(session_id)
+            
+            # Send new events
+            while last_index < len(events):
+                event = events[last_index]
+                yield f"event: event\ndata: {json.dumps(event)}\n\n"
+                last_index += 1
+            
+            # Small delay to prevent tight loop
+            await asyncio.sleep(0.5)
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
 @app.get("/pricing", tags=["Models"])
 async def list_pricing():
     """Get pricing information from OpenGPU Relay.
@@ -304,8 +372,24 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
             read_only=request.read_only
         )
         
+        # Clear previous events and add start event
+        event_stream.clear(session_id)
+        event_stream.add_event(session_id, {
+            "type": "start",
+            "message": "Processing your request...",
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
         # Execute the user's message via AiderBridge
         result = await bridge.execute(request.message)
+        
+        # Add completion event
+        event_stream.add_event(session_id, {
+            "type": "complete",
+            "success": result.success,
+            "message": "Request completed" if result.success else "Request failed",
+            "timestamp": datetime.utcnow().isoformat()
+        })
         
         # Convert AiderResult to ChatResponse format
         return ChatResponse(

@@ -6,7 +6,8 @@ import { MessageItem } from "./MessageItem";
 import { MessageInput } from "./MessageInput";
 import { useChat } from "@/hooks/useChat";
 import { useStatus } from "@/hooks/useStatus";
-import { AgentStatus } from "@/lib/types";
+import { useEventStream } from "@/hooks/useEventStream";
+import { AgentStatus, Message } from "@/lib/types";
 import { 
   Loader2, 
   Sparkles, 
@@ -16,15 +17,22 @@ import {
   BookOpen,
   Zap,
   Clock,
-  X
+  X,
+  Download,
+  FileJson,
+  FileText,
+  Wifi
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function ChatContainer() {
   const messages = useAppStore((state) => state.messages);
+  const sessionId = useAppStore((state) => state.sessionId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { sendMessage, isProcessing } = useChat();
   const { status } = useStatus();
+  const { events: streamEvents, isConnected } = useEventStream(sessionId);
 
   // Auto-scroll to bottom when new messages appear
   useEffect(() => {
@@ -37,8 +45,78 @@ export function ChatContainer() {
     sendMessage.mutate(message);
   };
 
+  // Export to JSON
+  const exportToJson = () => {
+    const data = JSON.stringify(messages, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `opencoder-conversation-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Conversation exported as JSON");
+  };
+
+  // Export to Markdown
+  const exportToMarkdown = () => {
+    let md = "# OpenCoder Conversation\n\n";
+    md += `Exported: ${new Date().toISOString()}\n\n`;
+    
+    messages.forEach((msg) => {
+      const role = msg.role === "user" ? "You" : "OpenCoder";
+      const time = new Date(msg.timestamp).toLocaleString();
+      md += `## ${role} - ${time}\n\n`;
+      md += `${msg.content}\n\n`;
+      
+      if (msg.fileChanges && msg.fileChanges.length > 0) {
+        md += "### Files Changed\n\n";
+        msg.fileChanges.forEach((file) => {
+          md += `- ${file.filename} (${file.operation})\n`;
+        });
+        md += "\n";
+      }
+    });
+    
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `opencoder-conversation-${new Date().toISOString().split("T")[0]}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Conversation exported as Markdown");
+  };
+
   return (
     <div className="flex flex-col h-full">
+      {/* Export buttons */}
+      {messages.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30">
+          <span className="text-xs text-muted-foreground">
+            {messages.length} messages
+          </span>
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={exportToJson}
+              className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-muted rounded transition-colors"
+              title="Export as JSON"
+            >
+              <FileJson className="w-3 h-3" />
+              JSON
+            </button>
+            <button
+              onClick={exportToMarkdown}
+              className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-muted rounded transition-colors"
+              title="Export as Markdown"
+            >
+              <FileText className="w-3 h-3" />
+              MD
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Messages list */}
       <div
         ref={scrollRef}
@@ -54,7 +132,7 @@ export function ChatContainer() {
             
             {/* Processing indicator */}
             {isProcessing && (
-              <ProcessingIndicator status={status} />
+              <ProcessingIndicator status={status} streamEvents={streamEvents} isConnected={isConnected} />
             )}
           </div>
         )}
@@ -145,7 +223,7 @@ function EmptyState({ onSend }: EmptyStateProps) {
 }
 
 // Processing indicator component
-function ProcessingIndicator({ status }: { status: any }) {
+function ProcessingIndicator({ status, streamEvents, isConnected }: { status: any; streamEvents: any[]; isConnected: boolean }) {
   const [elapsed, setElapsed] = useState(0);
   const agentStatus = useAppStore((state) => state.agentStatus);
   const { clearMessages } = useAppStore();
@@ -158,14 +236,25 @@ function ProcessingIndicator({ status }: { status: any }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Get latest stream event
+  const latestEvent = streamEvents.length > 0 ? streamEvents[streamEvents.length - 1] : null;
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Determine current step based on status
+  // Determine current step based on status and stream events
   const getCurrentStep = () => {
+    // Use stream events if available
+    if (latestEvent) {
+      return {
+        step: latestEvent.message || "Processing...",
+        details: isConnected ? "Streaming connected" : "Connecting..."
+      };
+    }
+    
     if (agentStatus === "processing") {
       return {
         step: "Processing your request...",
@@ -198,6 +287,13 @@ function ProcessingIndicator({ status }: { status: any }) {
               <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary rounded-full">
                 Processing
               </span>
+              {/* Streaming indicator */}
+              {isConnected && (
+                <span className="flex items-center gap-1 text-xs text-green-500" title="Streaming connected">
+                  <Wifi className="w-3 h-3" />
+                  Live
+                </span>
+              )}
               <div className="ml-auto flex items-center gap-2">
                 <Clock className="w-3 h-3 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">{formatTime(elapsed)}</span>

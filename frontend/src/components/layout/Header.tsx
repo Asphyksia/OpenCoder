@@ -7,7 +7,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useModels } from "@/hooks/useModels";
 import { useStatus } from "@/hooks/useStatus";
 import { Model } from "@/lib/types";
-import { Sun, Moon, Menu } from "lucide-react";
+import { Sun, Moon, Menu, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ import {
 export function Header() {
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const { agentStatus, selectedModel, setSelectedModel, sidebarOpen, setSidebarOpen, availableModels } = useAppStore();
+  const { agentStatus, selectedModel, setSelectedModel, sidebarOpen, setSidebarOpen, settingsOpen, setSettingsOpen, availableModels } = useAppStore();
   const { models, isLoading: modelsLoading } = useModels();
   const { status, isLoading: statusLoading, error: statusError } = useStatus();
 
@@ -117,6 +117,15 @@ export function Header() {
           ) : (
             <Moon className="w-5 h-5" />
           )}
+        </button>
+
+        {/* Settings */}
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="p-2 hover:bg-muted rounded-md transition-colors"
+          aria-label="Open settings"
+        >
+          <Settings className="w-5 h-5" />
         </button>
       </div>
     </header>

@@ -3,6 +3,8 @@
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ChatContainer } from "@/components/chat/ChatContainer";
+import { SettingsDialog } from "@/components/common/SettingsDialog";
+import { Toaster } from "sonner";
 
 export default function Home() {
   return (
@@ -14,6 +16,8 @@ export default function Home() {
           <ChatContainer />
         </main>
       </div>
+      <SettingsDialog />
+      <Toaster position="bottom-right" />
     </div>
   );
 }

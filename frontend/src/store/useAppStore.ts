@@ -33,6 +33,18 @@ interface AppStore {
   setIsProcessing: (processing: boolean) => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  
+  // Settings
+  settingsOpen: boolean;
+  setSettingsOpen: (open: boolean) => void;
+  
+  // Model Settings
+  temperature: number;
+  setTemperature: (temp: number) => void;
+  maxTokens: number;
+  setMaxTokens: (tokens: number) => void;
+  systemPrompt: string;
+  setSystemPrompt: (prompt: string) => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -104,6 +116,26 @@ export const useAppStore = create<AppStore>()(
       setSidebarOpen: (open) => {
         set({ sidebarOpen: open });
       },
+      
+      // Settings
+      settingsOpen: false,
+      setSettingsOpen: (open) => {
+        set({ settingsOpen: open });
+      },
+      
+      // Model Settings
+      temperature: 0.7,
+      setTemperature: (temp) => {
+        set({ temperature: temp });
+      },
+      maxTokens: 4096,
+      setMaxTokens: (tokens) => {
+        set({ maxTokens: tokens });
+      },
+      systemPrompt: "You are OpenCoder, an AI coding assistant powered by Aider and OpenGPU.",
+      setSystemPrompt: (prompt) => {
+        set({ systemPrompt: prompt });
+      },
     }),
     {
       name: "opencoder-storage",
@@ -111,6 +143,9 @@ export const useAppStore = create<AppStore>()(
         readOnly: state.readOnly,
         repoPath: state.repoPath,
         messages: state.messages,
+        temperature: state.temperature,
+        maxTokens: state.maxTokens,
+        systemPrompt: state.systemPrompt,
       }),
     }
   )
