@@ -47,6 +47,19 @@ except ImportError:
     AiderModel = None
 
 
+# Preferred models - only show these models in the UI
+# Set to None to show all available models
+PREFERRED_MODELS = [
+    "anthropic/claude-opus-4-6",
+    "anthropic/claude-sonnet-4-6",
+    "openai/gpt-5.2",
+    "deepseek-ai/DeepSeek-V3.1",
+    "Qwen/Qwen3-Coder",
+    "moonshotai/kimi-k2.5",
+    "qwen/qwen2.5-vl-72b-instruct",
+]
+
+
 @dataclass
 class OpenGPUConfig:
     """Configuration for OpenGPU Relay connection.
@@ -287,6 +300,15 @@ class OpenGPUAdapter:
                             # Only include text-to-text models for coding
                             if model_info.get('tag') == 'text-to-text':
                                 full_name = f"{provider}/{model_info['name']}"
+                                
+                                # Filter by preferred models if configured
+                                if PREFERRED_MODELS is not None:
+                                    # Check if this model is in the preferred list
+                                    # Allow partial matches (e.g., "Qwen/Qwen3-Coder" matches "qwen/qwen3-coder")
+                                    model_lower = full_name.lower()
+                                    if not any(model_lower == p.lower() or model_lower.startswith(p.lower().split('/')[0].lower() + '/') for p in PREFERRED_MODELS):
+                                        continue
+                                
                                 # Format display name: extract last part and clean up
                                 display_name = self._format_model_display_name(
                                     provider, 
