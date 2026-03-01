@@ -12,11 +12,15 @@ import re
 import io
 import json
 import asyncio
+import sys
 from pathlib import Path
 from typing import Any, Optional
 from dataclasses import dataclass, field
 from contextlib import redirect_stdout, redirect_stderr
 from loguru import logger
+
+# Project root directory - dynamic detection
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 # Configure litellm BEFORE importing aider
 # This must be done at module level before aider loads
@@ -69,10 +73,11 @@ _configure_litellm_early()
 del _configure_litellm_early
 
 # Add Python 3.12 site-packages to path for Aider
-import sys
-_python12_site_packages = '/home/asphyksia/OpenCoder/venv/lib/python3.12/site-packages'
-if _python12_site_packages not in sys.path:
-    sys.path.insert(0, _python12_site_packages)
+# Use dynamic detection based on current Python executable's site-packages
+_venv_path = Path(sys.executable).parent.parent
+_python12_site_packages = _venv_path / "lib" / "python3.12" / "site-packages"
+if str(_python12_site_packages) not in sys.path and _python12_site_packages.exists():
+    sys.path.insert(0, str(_python12_site_packages))
 
 # Aider imports - optional, will be loaded if available
 AIDER_AVAILABLE = False
@@ -814,12 +819,11 @@ class AiderCLIEngine:
             self._add_event("system", f"Using model: {normalized_model}")
             
             # Build aider command using the wrapper script
-            # The wrapper adds Python 3.12 site-packages before running aider
-            import os
-            wrapper_script = '/home/asphyksia/OpenCoder/scripts/aider_wrapper.py'
+            # Use dynamic paths relative to project root
+            wrapper_script = str(PROJECT_ROOT / "scripts" / "aider_wrapper.py")
             
-            # Use the Python that can find the wrapper
-            python_exe = '/home/asphyksia/OpenCoder/venv/bin/python'
+            # Use the current Python executable
+            python_exe = sys.executable
             
             # Run aider using the wrapper script
             cmd = [

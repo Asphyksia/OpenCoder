@@ -103,9 +103,11 @@ class AiderBridge:
         Returns:
             Lista de comandos para ejecutar Aider via uv tool with litellm patch.
         """
-        # Use absolute path to uv to ensure it's available in subprocess
+        # Use uv from PATH - it should be available in the environment
         import shutil
-        uv_path = shutil.which("uv") or "/home/asphyksia/.var/app/com.vscodium.codium/data/python/bin/uv"
+        uv_path = shutil.which("uv")
+        if not uv_path:
+            raise RuntimeError("uv not found in PATH. Please ensure uv is installed and available.")
         
         # Get the path to our wrapper script
         import pathlib

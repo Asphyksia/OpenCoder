@@ -197,9 +197,13 @@ def custom_completion(
     final_api_key = api_key or os.getenv("OPENAI_API_KEY") or os.getenv("OPENGPU_API_KEY", "")
     final_base_url = api_base or os.getenv("OPENAI_API_BASE") or os.getenv("OPENGPU_BASE_URL", "https://relaygpu.com/backend/openai/v1")
     
-    # Clean the model: remove "openai/" prefix if present
-    # Keep full model name including provider
-    clean_model = model
+    # Clean the model: only remove "openai/" prefix
+    # Other providers like "moonshotai/", "Qwen/", "deepseek-ai/" are NOT standard litellm
+    # providers and should be kept as part of the model name
+    if model.startswith("openai/"):
+        clean_model = model[7:]  # Remove "openai/" prefix
+    else:
+        clean_model = model  # Keep full model name
     
     logger.info(f"[OpenGPU Patch] Completion request")
     logger.info(f"[OpenGPU Patch]   Model: {clean_model}")
