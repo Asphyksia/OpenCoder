@@ -83,9 +83,8 @@ export function Sidebar() {
           !sidebarOpen && "-translate-x-full"
         )}
       >
-        {/* Header */}
-        <div className="h-14 flex items-center justify-between px-4 border-b border-border">
-          <h2 className="font-semibold"></h2>
+        {/* Header - hidden on desktop, shown only for close button on mobile */}
+        <div className="h-12 flex items-center justify-end px-4 lg:hidden border-b border-border">
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-2 hover:bg-muted rounded-md"

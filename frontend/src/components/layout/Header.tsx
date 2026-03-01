@@ -56,7 +56,6 @@ export function Header() {
         <div className="flex items-center gap-2">
           <img src="/logo.jpg" alt="OpenCoder" className="h-8 w-8 rounded-md object-contain bg-white" />
           <span className="text-xl font-bold">OpenCoder</span>
-          <StatusBadge status={agentStatus} />
         </div>
       </div>
 
