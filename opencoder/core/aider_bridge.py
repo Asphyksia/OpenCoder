@@ -164,9 +164,25 @@ class AiderBridge:
         # Add to cmd the flag to skip model warnings
         cmd.append("--no-show-model-warnings")
         
+        # Build the command
+        # Add instructions to force edit mode
+        edit_instructions = """
+You are in EDIT MODE. When the user asks to create or modify files, you MUST use Aider's edit commands:
+- Use: `filename` to add a file to the chat
+- Use: `CREATE filename` with content to create a new file
+- Use: `filename` to select an existing file, then make edits
+- When ready, use: `y` or `yes` to confirm changes
+
+IMPORTANT: Do NOT ask the user to add files. Instead, use the CREATE command or edit existing files directly.
+Example: CREATE shutdown_timer.py with the code you need.
+        """
+        
+        # Combine user message with edit instructions
+        full_message = f"{edit_instructions}\n\nUser request: {message}"
+        
         cmd.extend([
             model_arg,
-            f"--message={message}",
+            f"--message={full_message}",
             "--yes",  # Auto-confirmar
             "--no-stream",  # Output completo al final
         ])
