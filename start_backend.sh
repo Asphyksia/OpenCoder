@@ -1,13 +1,23 @@
 #!/bin/bash
 # Script para iniciar el backend de OpenCoder
 
+# Cargar variables de entorno desde .env
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
 # Activar el entorno virtual
 source venv/bin/activate
 
 # Configurar la variable de entorno si no está definida
 if [ -z "$OPENGPU_API_KEY" ]; then
-    export OPENGPU_API_KEY="relay_sk_a175218cff8db1b346a0add4031067eb17b59bd831013f9ac73f6a5b6cae6360"
+    echo "ERROR: OPENGPU_API_KEY no está definida. Añádela al archivo .env"
+    exit 1
+fi
+
+if [ -z "$OPENGPU_BASE_URL" ]; then
+    export OPENGPU_BASE_URL="https://relaygpu.com/backend/openai/v1"
 fi
 
 # Iniciar el servidor
-uvicorn opencoder.api.main:app --port 8000 --reload
+uvicorn opencoder.api.main:app --port 8001 --reload

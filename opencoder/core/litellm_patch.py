@@ -118,7 +118,7 @@ async def _call_opengpu_async(
     url = f"{base_url.rstrip('/')}/chat/completions"
     
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "X-API-Key": api_key,
         "Content-Type": "application/json",
     }
     
@@ -128,6 +128,7 @@ async def _call_opengpu_async(
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
+        "mode": "auto",
     }
     
     # Add optional valid parameters
@@ -197,9 +198,8 @@ def custom_completion(
     final_base_url = api_base or os.getenv("OPENAI_API_BASE") or os.getenv("OPENGPU_BASE_URL", "https://relaygpu.com/backend/openai/v1")
     
     # Clean the model: remove "openai/" prefix if present
+    # Keep full model name including provider
     clean_model = model
-    if model.startswith("openai/"):
-        clean_model = model[7:]  # Remove "openai/"
     
     logger.info(f"[OpenGPU Patch] Completion request")
     logger.info(f"[OpenGPU Patch]   Model: {clean_model}")
@@ -208,26 +208,11 @@ def custom_completion(
     
     # Execute async call
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If loop is already running, create new one in a thread
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    _call_opengpu_async(
-                        base_url=final_base_url,
-                        api_key=final_api_key,
-                        model=clean_model,
-                        messages=messages,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        **kwargs
-                    )
-                )
-                result = future.result(timeout=180)
-        else:
-            result = loop.run_until_complete(
+        # Always create a new event loop to avoid conflicts
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(
+                asyncio.run,
                 _call_opengpu_async(
                     base_url=final_base_url,
                     api_key=final_api_key,
@@ -238,19 +223,10 @@ def custom_completion(
                     **kwargs
                 )
             )
-    except RuntimeError:
-        # No loop, create new one
-        result = asyncio.run(
-            _call_opengpu_async(
-                base_url=final_base_url,
-                api_key=final_api_key,
-                model=clean_model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                **kwargs
-            )
-        )
+            result = future.result(timeout=180)
+    except Exception as e:
+        logger.error(f"[OpenGPU Patch] Error in completion: {e}")
+        raise
     
     # Parse response
     choices = []
