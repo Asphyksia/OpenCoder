@@ -85,7 +85,7 @@ export function Sidebar() {
       >
         {/* Header */}
         <div className="h-14 flex items-center justify-between px-4 border-b border-border">
-          <h2 className="font-semibold">OpenCoder</h2>
+          <h2 className="font-semibold"></h2>
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-2 hover:bg-muted rounded-md"
