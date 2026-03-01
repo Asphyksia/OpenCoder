@@ -1,0 +1,756 @@
+================================================================================
+                    OpenCoder Frontend - Mejoras Adicionales
+                    Análisis Post-Implementación v2
+================================================================================
+
+ Fecha: 2026-03-01
+ Basado en: Análisis de 4 capturas de pantalla
+ Estado: Evaluación post-implementación
+
+================================================================================
+                    1. MEJORAS IMPLEMENTADAS DETECTADAS
+================================================================================
+
+Según las capturas, se han implementado correctamente:
+
+✅ Botón "New Chat" en sidebar
+✅ Sección "Project Files" (listado de archivos del proyecto)
+✅ Sección "Modified in Session" (archivos modificados)
+✅ Indicador de procesamiento con tiempo (0:02)
+✅ Atajos de teclado visibles (Ctrl+N)
+✅ Placeholder mejorado ("/ for commands")
+✅ Syntax highlighting en bloques de código
+✅ Indicador "Processing" con estado
+
+================================================================================
+                    2. ÁREAS DE MEJORA IDENTIFICADAS
+================================================================================
+
+2.1 CÓDIGO Y SYNTAX HIGHLIGHTING
+--------------------------------
+PRIORIDAD: Alta
+
+Problema: El código se muestra con syntax highlighting básico, pero los bloques
+dentro del chat no tienen el formato rico que debería.
+
+Mejoras:
+- Añadir detección automática del lenguaje por extensión de archivo
+- Colorear el código en los diffs
+- Añadir tema personalizado que coincida con el tema de la app
+
+Ejemplo de implementación:
+```tsx
+// Detectar lenguaje por nombre de archivo
+function detectLanguage(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  const langMap: Record<string, string> = {
+    'py': 'python',
+    'js': 'javascript',
+    'ts': 'typescript',
+    'tsx': 'tsx',
+    'jsx': 'jsx',
+    'json': 'json',
+    'md': 'markdown',
+    'css': 'css',
+    'html': 'html',
+    'sh': 'bash',
+    'yaml': 'yaml',
+    'yml': 'yaml',
+  }
+  return langMap[ext || ''] || 'text'
+}
+```
+
+
+2.2 SIDEBAR - ELIMINAR LISTA DE MODELOS REDUNDANTE
+--------------------------------------------------
+PRIORIDAD: Alta
+
+Problema: En las capturas 1 y 2 se ve una lista larga de "Available Models"
+en el sidebar que es redundante con el selector del Header.
+
+Solución: Eliminar esta sección completamente o convertirla en algo útil:
+
+```tsx
+// ELIMINAR:
+<Collapsible title="Available Models" defaultOpen>
+  <ul>...models list...</ul>
+</Collapsible>
+
+// REEMPLAZAR POR (opción A - Acciones rápidas):
+<Collapsible title="Quick Actions" defaultOpen>
+  <div className="space-y-1">
+    <button onClick={newChat}>💬 New Chat</button>
+    <button onClick={openSettings}>⚙️ Settings</button>
+    <button onClick={exportChat}>📤 Export Chat</button>
+  </div>
+</Collapsible>
+
+// REEMPLAZAR POR (opción B - Información del modelo actual):
+<Collapsible title="Current Model" defaultOpen>
+  <div className="p-3 bg-muted rounded-md">
+    <div className="font-medium">{selectedModel}</div>
+    <div className="text-xs text-muted-foreground mt-1">
+      Provider: {modelProvider}
+    </div>
+    <div className="text-xs text-muted-foreground">
+      Context: {contextLength} tokens
+    </div>
+  </div>
+</Collapsible>
+```
+
+
+2.3 INDICADOR DE PROGRESO MEJORADO
+---------------------------------
+PRIORIDAD: Alta
+
+Problema actual:
+- Muestra "Processing" con tiempo (0:02)
+- Falta información sobre qué está haciendo
+
+Mejora propuesta:
+
+┌─────────────────────────────────────────────────────────────┐
+│ 🤖 OpenCoder • Processing...                          0:02  │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ 📋 Steps:                                                   │
+│   ✓ Analyzing your request                                  │
+│   ✓ Reading workspace files                                 │
+│   ◐ Generating code...                                      │
+│   ○ Applying changes                                        │
+│                                                             │
+│ ⏱️ Elapsed: 2s  •  Est. remaining: ~5s                      │
+│                                        [Cancel Operation]   │
+└─────────────────────────────────────────────────────────────┘
+
+Implementación:
+```tsx
+interface ProcessingStep {
+  id: string
+  label: string
+  status: 'pending' | 'in_progress' | 'completed' | 'error'
+}
+
+function ProcessingIndicator({ steps, elapsedTime }: Props) {
+  return (
+    <div className="p-4 bg-card border border-border rounded-lg">
+      <div className="flex items-center justify-between mb-3">
+        <span className="flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Processing...
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {formatTime(elapsedTime)}
+        </span>
+      </div>
+      
+      {/* Progress bar */}
+      <div className="h-1 bg-muted rounded-full mb-3">
+        <div 
+          className="h-full bg-primary rounded-full transition-all"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      
+      {/* Steps */}
+      <div className="space-y-1">
+        {steps.map(step => (
+          <div key={step.id} className="flex items-center gap-2 text-xs">
+            {step.status === 'completed' && <Check className="w-3 h-3 text-green-500" />}
+            {step.status === 'in_progress' && <Loader2 className="w-3 h-3 animate-spin" />}
+            {step.status === 'pending' && <Circle className="w-3 h-3 text-muted-foreground" />}
+            <span className={step.status === 'in_progress' ? 'font-medium' : 'text-muted-foreground'}>
+              {step.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      
+      <Button variant="ghost" size="sm" className="mt-3" onClick={onCancel}>
+        Cancel
+      </Button>
+    </div>
+  )
+}
+```
+
+
+2.4 TIMESTAMPS MÁS LEGIBLES
+---------------------------
+PRIORIDAD: Media
+
+Problema: Los timestamps (22:11:05, 17:17:45) son difíciles de leer y
+se ven pequeños.
+
+Solución:
+- Formato relativo: "hace 2 min", "hace 1 hora"
+- Hover para ver timestamp completo
+- Mejor contraste
+
+```tsx
+import { formatDistanceToNow } from 'date-fns'
+import { es } from 'date-fns/locale'
+
+function formatRelativeTime(timestamp: string): string {
+  const date = new Date(timestamp)
+  return formatDistanceToNow(date, { addSuffix: true, locale: es })
+}
+
+// En el componente:
+<Tooltip>
+  <TooltipTrigger>
+    <span className="text-xs text-muted-foreground">
+      {formatRelativeTime(message.timestamp)}
+    </span>
+  </TooltipTrigger>
+  <TooltipContent>
+    {formatTimestamp(message.timestamp)}
+  </TooltipContent>
+</Tooltip>
+```
+
+
+2.5 ACCIONES EN MENSAJES DEL ASISTENTE
+-------------------------------------
+PRIORIDAD: Media
+
+Problema: Los mensajes del asistente no tienen acciones disponibles.
+
+Mejora: Añadir botones de acción:
+
+┌─────────────────────────────────────────────────────────────┐
+│ 🤖 OpenCoder • Qwen3-Coder • hace 2 min        ✓ Complete  │
+│                                                             │
+│ He creado el archivo calculator.py con las funciones...     │
+│                                                             │
+│ 📝 Código generado:                                         │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ # calculator.py                              [📋] [👁️] │ │
+│ │ def add(a, b): return a + b                             │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ✅ Files changed:                                           │
+│    [M] calculator.py                                        │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ [View Diff] [Open File] [Undo Changes] [Regenerate]    │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+
+Implementación:
+```tsx
+function MessageActions({ message }: { message: Message }) {
+  if (message.role !== 'assistant') return null
+  
+  return (
+    <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+      {message.diffs && (
+        <Button variant="ghost" size="sm" onClick={() => showDiff(message.diffs)}>
+          <FileCode className="w-4 h-4 mr-1" />
+          View Diff
+        </Button>
+      )}
+      {message.fileChanges?.length > 0 && (
+        <Button variant="ghost" size="sm" onClick={() => openFile(file)}>
+          <ExternalLink className="w-4 h-4 mr-1" />
+          Open File
+        </Button>
+      )}
+      <Button variant="ghost" size="sm" onClick={() => undoChanges()}>
+        <Undo2 className="w-4 h-4 mr-1" />
+        Undo
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => regenerate()}>
+        <RefreshCw className="w-4 h-4 mr-1" />
+        Regenerate
+      </Button>
+    </div>
+  )
+}
+```
+
+
+2.6 CONSISTENCIA EN ESTADOS
+---------------------------
+PRIORIDAD: Alta
+
+Problema detectado en captura 2:
+- "Modified Files" muestra archivos
+- Pero "Changes: 0 files" en Status
+
+Esto es confuso para el usuario.
+
+Solución: Sincronizar los contadores:
+
+```tsx
+// En el store, asegurar consistencia:
+const fileChangesCount = useMemo(() => {
+  return messages
+    .flatMap(m => m.fileChanges || [])
+    .filter((file, index, self) => 
+      self.findIndex(f => f.filename === file.filename) === index
+    ).length
+}, [messages])
+
+// Mostrar el mismo número en ambos lados
+```
+
+
+2.7 VACIAR/COMENZAR NUEVA CONVERSACIÓN
+--------------------------------------
+PRIORIDAD: Media
+
+Problema: No está claro cómo limpiar el chat actual.
+
+Solución: Añadir opciones claras:
+
+```tsx
+// En Header o Sidebar
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="ghost" size="sm">
+      <MoreVertical className="w-4 h-4" />
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent>
+    <DropdownMenuItem onClick={clearChat}>
+      <Trash2 className="w-4 h-4 mr-2" />
+      Clear chat
+    </DropdownMenuItem>
+    <DropdownMenuItem onClick={exportChat}>
+      <Download className="w-4 h-4 mr-2" />
+      Export conversation
+    </DropdownMenuItem>
+    <DropdownMenuItem onClick={newSession}>
+      <Plus className="w-4 h-4 mr-2" />
+      New session
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
+```
+
+
+2.8 EMPTY STATE MEJORADO
+------------------------
+PRIORIDAD: Media
+
+Problema: El estado vacío actual es básico.
+
+Propuesta:
+
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│                    🚀 OpenCoder                             │
+│                                                             │
+│           Tu asistente de programación con IA               │
+│           Powered by Aider + OpenGPU                        │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │                  Quick Actions                          │ │
+│ │                                                         │ │
+│ │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │ │
+│ │  │ 📝 Create   │  │ 🐛 Fix Bug  │  │ ♻️ Refactor │     │ │
+│ │  │   New File  │  │             │  │             │     │ │
+│ │  └─────────────┘  └─────────────┘  └─────────────┘     │ │
+│ │                                                         │ │
+│ │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │ │
+│ │  │ 📚 Add Docs │  │ ✅ Add Tests│  │ 🔍 Explain  │     │ │
+│ │  │             │  │             │  │   Code      │     │ │
+│ │  └─────────────┘  └─────────────┘  └─────────────┘     │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ 💡 Ejemplo de lo que puedes pedir:                      │ │
+│ │                                                         │ │
+│ │ "Crea una API REST con FastAPI para gestionar usuarios" │ │
+│ │ "Añade tests unitarios a main.py"                       │ │
+│ │ "Refactoriza este código para usar async/await"         │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│                                                             │
+│ ● Connected    Model: Qwen/Qwen3-Coder    Workspace: ready  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+
+2.9 MEJORAR VISUALIZACIÓN DE DIFFS
+----------------------------------
+PRIORIDAD: Alta
+
+Problema actual: Los diffs se muestran como texto plano.
+
+Propuesta: Vista de diff más visual con colores:
+
+```tsx
+function DiffViewer({ diffs }: { diffs: string }) {
+  const parsedDiffs = parseDiff(diffs)
+  
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 bg-muted">
+        <span className="text-sm font-medium">Changes</span>
+        <div className="flex gap-2">
+          <Badge variant="outline" className="text-green-500">
+            +{addedLines}
+          </Badge>
+          <Badge variant="outline" className="text-red-500">
+            -{removedLines}
+          </Badge>
+        </div>
+      </div>
+      
+      {/* Side by side diff */}
+      <div className="grid grid-cols-2 divide-x divide-border">
+        <div className="bg-red-500/5">
+          <div className="px-2 py-1 text-xs text-muted-foreground border-b">
+            Original
+          </div>
+          <pre className="text-xs p-2">
+            {oldLines.map(line => (
+              <div className={line.removed ? 'bg-red-500/20' : ''}>
+                {line.content}
+              </div>
+            ))}
+          </pre>
+        </div>
+        <div className="bg-green-500/5">
+          <div className="px-2 py-1 text-xs text-muted-foreground border-b">
+            Modified
+          </div>
+          <pre className="text-xs p-2">
+            {newLines.map(line => (
+              <div className={line.added ? 'bg-green-500/20' : ''}>
+                {line.content}
+              </div>
+            ))}
+          </pre>
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+
+2.10 NOTIFICACIONES TOAST
+-------------------------
+PRIORIDAD: Media
+
+Añadir feedback visual para acciones:
+
+```tsx
+import { toast } from 'sonner'
+
+// Después de crear archivo
+toast.success('File created', {
+  description: 'calculator.py has been created in workspace/',
+  action: {
+    label: 'Open',
+    onClick: () => openFile('calculator.py')
+  }
+})
+
+// Error
+toast.error('Failed to connect', {
+  description: 'Could not reach OpenGPU API. Check your API key.',
+  action: {
+    label: 'Settings',
+    onClick: () => openSettings()
+  }
+})
+
+// Procesando
+const toastId = toast.loading('Processing your request...')
+// ... cuando termina
+toast.success('Complete!', { id: toastId })
+```
+
+
+================================================================================
+                    3. NUEVAS FUNCIONALIDADES SUGERIDAS
+================================================================================
+
+3.1 SISTEMA DE COMANDOS SLASH
+-----------------------------
+PRIORIDAD: Media
+
+Comandos útiles:
+
+| Comando      | Descripción                           |
+|--------------|---------------------------------------|
+| /help        | Mostrar ayuda y comandos disponibles  |
+| /clear       | Limpiar chat actual                   |
+| /model       | Cambiar modelo                        |
+| /files       | Listar archivos del proyecto          |
+| /add <file>  | Añadir archivo al contexto            |
+| /undo        | Deshacer último cambio                |
+| /history     | Ver historial de comandos             |
+
+Implementación:
+```tsx
+function CommandPalette({ onCommand }: Props) {
+  const commands = [
+    { name: '/help', description: 'Show help', action: showHelp },
+    { name: '/clear', description: 'Clear chat', action: clearChat },
+    { name: '/model', description: 'Change model', action: openModelSelector },
+    // ...
+  ]
+  
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <input 
+          placeholder="Type / for commands..."
+          onChange={handleInput}
+        />
+      </PopoverTrigger>
+      <PopoverContent>
+        {commands.map(cmd => (
+          <button key={cmd.name} onClick={cmd.action}>
+            <span className="font-mono">{cmd.name}</span>
+            <span className="text-muted-foreground">{cmd.description}</span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  )
+}
+```
+
+
+3.2 VISTA PREVIA DE ARCHIVOS
+---------------------------
+PRIORIDAD: Media
+
+Mostrar vista previa del archivo modificado:
+
+```tsx
+function FilePreview({ filename, content }: Props) {
+  return (
+    <Card className="mt-2">
+      <CardHeader className="py-2 px-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium font-mono">{filename}</span>
+          <div className="flex gap-1">
+            <Button size="sm" variant="ghost">
+              <Copy className="w-3 h-3" />
+            </Button>
+            <Button size="sm" variant="ghost">
+              <ExternalLink className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <CodeBlock code={content} language={detectLanguage(filename)} />
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+
+3.3 HISTORIAL DE CONVERSACIONES
+-------------------------------
+PRIORIDAD: Baja
+
+Guardar y restaurar conversaciones:
+
+```tsx
+interface Conversation {
+  id: string
+  title: string
+  messages: Message[]
+  createdAt: Date
+  model: string
+}
+
+// Persistencia
+const { conversations, saveConversation, loadConversation } = useConversations()
+
+// Guardar automáticamente
+useEffect(() => {
+  if (messages.length > 0) {
+    saveConversation({
+      id: currentSessionId,
+      title: generateTitle(messages[0].content),
+      messages,
+      model: selectedModel,
+    })
+  }
+}, [messages])
+```
+
+
+================================================================================
+                    4. MEJORAS TÉCNICAS
+================================================================================
+
+4.1 OPTIMIZAR RENDIMIENTO
+-------------------------
+
+```tsx
+// Usar React.memo para componentes pesados
+const MessageItem = memo(function MessageItem({ message }) {
+  // ...
+})
+
+// Virtualizar lista de mensajes larga
+import { useVirtualizer } from '@tanstack/react-virtual'
+
+function ChatContainer() {
+  const virtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 100,
+  })
+  // ...
+}
+
+// Debounce en búsquedas
+import { debounce } from 'lodash'
+
+const debouncedSearch = useMemo(
+  () => debounce((query) => searchFiles(query), 300),
+  []
+)
+```
+
+
+4.2 MANEJO DE ERRORES MEJORADO
+------------------------------
+
+```tsx
+// Error boundary para el chat
+class ChatErrorBoundary extends React.Component {
+  state = { hasError: false }
+  
+  static getDerivedStateFromError(error) {
+    return { hasError: true }
+  }
+  
+  componentDidCatch(error, info) {
+    console.error('Chat error:', error, info)
+    // Enviar a servicio de monitoreo
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 text-center">
+          <AlertCircle className="w-8 h-8 mx-auto text-red-500 mb-2" />
+          <p>Something went wrong</p>
+          <Button onClick={() => this.setState({ hasError: false })}>
+            Retry
+          </Button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+```
+
+
+4.3 ACCESIBILIDAD
+-----------------
+
+```tsx
+// Añadir ARIA labels
+<button
+  aria-label="Send message"
+  aria-busy={isProcessing}
+>
+  <Send />
+</button>
+
+// Navegación por teclado
+<div
+  role="log"
+  aria-live="polite"
+  aria-label="Chat messages"
+>
+  {messages.map(...)}
+</div>
+
+// Focus management
+useEffect(() => {
+  if (messages.length > 0) {
+    lastMessageRef.current?.focus()
+  }
+}, [messages])
+```
+
+
+================================================================================
+                    5. RESUMEN DE PRIORIDADES
+================================================================================
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│                          PRIORIDAD ALTA                                    │
+├────────────────────────────────────────────────────────────────────────────┤
+│ □ Eliminar "Available Models" del sidebar (redundante)                     │
+│ □ Mejorar indicador de progreso con steps detallados                       │
+│ □ Añadir botones de acción en mensajes (View Diff, Undo, etc.)             │
+│ □ Sincronizar contadores de archivos modificados                           │
+│ □ Mejorar visualización de diffs (side-by-side)                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│                          PRIORIDAD MEDIA                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│ □ Timestamps relativos con tooltip                                         │
+│ □ Empty state con Quick Actions                                            │
+│ □ Sistema de comandos con /                                                │
+│ □ Notificaciones toast para feedback                                       │
+│ □ Vista previa de archivos                                                 │
+│ □ Menú de acciones en chat (Clear, Export, New)                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│                          PRIORIDAD BAJA                                    │
+├────────────────────────────────────────────────────────────────────────────┤
+│ □ Historial de conversaciones persistente                                  │
+│ □ Virtualización de lista de mensajes                                      │
+│ □ Mejoras de accesibilidad (ARIA)                                          │
+│ □ Optimización de rendimiento                                              │
+└────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                    6. ARCHIVOS A MODIFICAR
+================================================================================
+
+MODIFICAR:
+- frontend/src/components/layout/Sidebar.tsx
+  → Eliminar "Available Models", añadir Quick Actions
+
+- frontend/src/components/chat/MessageItem.tsx
+  → Añadir MessageActions, mejorar timestamps
+
+- frontend/src/components/chat/ChatContainer.tsx
+  → Mejorar Empty State
+
+- frontend/src/components/agent/DiffViewer.tsx
+  → Vista side-by-side
+
+- frontend/src/store/useAppStore.ts
+  → Sincronizar contadores, añadir historial
+
+CREAR:
+- frontend/src/components/chat/ProcessingIndicator.tsx
+- frontend/src/components/chat/MessageActions.tsx
+- frontend/src/components/chat/CommandPalette.tsx
+- frontend/src/components/chat/QuickActions.tsx
+- frontend/src/hooks/useConversations.ts
+- frontend/src/hooks/useToast.ts
+
+
+================================================================================
+                    FIN DEL DOCUMENTO
+================================================================================

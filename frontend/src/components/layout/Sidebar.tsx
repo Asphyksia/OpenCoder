@@ -118,12 +118,11 @@ export function Sidebar() {
                   {repoPath}
                 </span>
               </div>
-              {status && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Changes</span>
-                  <span>{status.file_changes_count} files</span>
-                </div>
-              )}
+              {/* Use local file changes count for consistency */}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Changes</span>
+                <span>{fileChanges.length} files</span>
+              </div>
             </div>
           </Collapsible>
 

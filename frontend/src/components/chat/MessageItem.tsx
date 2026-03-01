@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Message } from "@/lib/types";
-import { formatDuration, formatTimestamp } from "@/lib/utils";
+import { formatDuration, formatTimestamp, formatRelativeTime } from "@/lib/utils";
 import { LoadingDots } from "@/components/common/LoadingDots";
 import { AgentEvents } from "@/components/agent/AgentEvents";
 import { DiffViewer } from "@/components/agent/DiffViewer";
@@ -49,8 +49,8 @@ export function MessageItem({ message }: MessageItemProps) {
               • {message.model}
             </span>
           )}
-          <span className="text-xs text-muted-foreground">
-            {formatTimestamp(message.timestamp)}
+          <span className="text-xs text-muted-foreground" title={formatTimestamp(message.timestamp)}>
+            {formatRelativeTime(message.timestamp)}
           </span>
           {message.duration && (
             <span className="text-xs text-muted-foreground">

@@ -7,7 +7,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useModels } from "@/hooks/useModels";
 import { useStatus } from "@/hooks/useStatus";
 import { Model } from "@/lib/types";
-import { Sun, Moon, Menu, Settings } from "lucide-react";
+import { Sun, Moon, Menu, Settings, MoreVertical, Trash2, Download, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ import {
 export function Header() {
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const { agentStatus, selectedModel, setSelectedModel, sidebarOpen, setSidebarOpen, settingsOpen, setSettingsOpen, availableModels } = useAppStore();
+  const { agentStatus, selectedModel, setSelectedModel, sidebarOpen, setSidebarOpen, settingsOpen, setSettingsOpen, availableModels, clearMessages, messages } = useAppStore();
   const { models, isLoading: modelsLoading } = useModels();
   const { status, isLoading: statusLoading, error: statusError } = useStatus();
 
@@ -127,6 +127,31 @@ export function Header() {
         >
           <Settings className="w-5 h-5" />
         </button>
+
+        {/* More Options */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="p-2 hover:bg-muted rounded-md transition-colors"
+              aria-label="More options"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 z-[100]">
+            <DropdownMenuItem onClick={clearMessages}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clear chat
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              clearMessages();
+              window.location.reload();
+            }}>
+              <Plus className="w-4 h-4 mr-2" />
+              New session
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
