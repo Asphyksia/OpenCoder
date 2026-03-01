@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENGPU_API_KEY=${OPENGPU_API_KEY}
+      - OPENGPU_BASE_URL=https://relaygpu.com/backend/openai/v1
+      - OPENGPU_MODEL=Qwen/Qwen3-Coder
+    volumes:
+      - ./workspace:/app/workspace
+    command: uvicorn opencoder.api.main:app --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+
+  frontend:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app/frontend
+    working_dir: /app/frontend
+    command: npm run dev
+    depends_on:
+      - backend
+    restart: unless-stopped
