@@ -13,7 +13,7 @@ Endpoints:
 
 import os
 import uuid
-import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -377,7 +377,7 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
         event_stream.add_event(session_id, {
             "type": "start",
             "message": "Processing your request...",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
         # Execute the user's message via AiderBridge
@@ -388,7 +388,7 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
             "type": "complete",
             "success": result.success,
             "message": "Request completed" if result.success else "Request failed",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
         # Convert AiderResult to ChatResponse format
