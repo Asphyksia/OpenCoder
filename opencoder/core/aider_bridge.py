@@ -148,11 +148,12 @@ class AiderBridge:
         # This requires litellm to not do provider auto-detection
         #
         # Approach 2: Set LITELLM_DROP_PARAMS to skip validation
-        if "/" in self.model:
-            # Extract model name after provider
-            model_to_use = self.model.split("/", 1)[1]
+        # Only strip "openai/" prefix - other providers like moonshotai, qwen, deepseek-ai
+        # are NOT standard litellm providers and should be kept as part of the model name
+        if self.model.startswith("openai/"):
+            model_to_use = self.model[7:]  # Remove "openai/" prefix
         else:
-            model_to_use = self.model
+            model_to_use = self.model  # Keep full model name (e.g., "moonshotai/kimi-k2.5")
         
         # For litellm with custom base URLs, we need to prevent provider auto-detection
         # by setting special environment variables
