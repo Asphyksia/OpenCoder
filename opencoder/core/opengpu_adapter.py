@@ -51,7 +51,7 @@ except ImportError:
 # Set to None to show all available models
 # Format: provider/model-name
 PREFERRED_MODELS = [
-    # OpenGPU models (auto category)
+    # OpenGPU models
     "anthropic/claude-opus-4-6",
     "anthropic/claude-sonnet-4-6",
     "openai/gpt-5.2",
@@ -59,7 +59,7 @@ PREFERRED_MODELS = [
     "Qwen/Qwen3-Coder",
     "moonshotai/kimi-k2.5",
     "qwen/qwen2.5-vl-72b-instruct",
-    # Ollama models (opengpu category)
+    # Ollama models
     "ollama/gpt-oss:20b",
     "ollama/llama3.2:3b",
     "ollama/deepseek-r1:8b",
@@ -306,7 +306,15 @@ class OpenGPUAdapter:
                         for model_info in provider_models:
                             # Only include text-to-text models for coding
                             if model_info.get('tag') == 'text-to-text':
-                                full_name = f"{provider}/{model_info['name']}"
+                                # Model names from API may already include provider prefix
+                                # e.g., "anthropic/claude-opus-4-6" with provider "anthropic"
+                                model_name = model_info['name']
+                                if '/' in model_name:
+                                    # Already has provider prefix, use as-is
+                                    full_name = model_name
+                                else:
+                                    # No prefix, add provider
+                                    full_name = f"{provider}/{model_name}"
                                 
                                 # Skip if already added (avoid duplicates)
                                 if full_name in seen_models:
@@ -317,7 +325,12 @@ class OpenGPUAdapter:
                                     # Check if this model is in the preferred list
                                     model_lower = full_name.lower()
                                     preferred_lower = [p.lower() for p in PREFERRED_MODELS]
-                                    if not any(model_lower == p or model_lower.replace('-', '').replace(':', '') == p.replace('-', '').replace(':', '') for p in preferred_lower):
+                                    # Check exact match or partial match
+                                    if not any(
+                                        model_lower == p or 
+                                        model_lower.endswith('/' + p.split('/')[-1].lower())
+                                        for p in preferred_lower
+                                    ):
                                         continue
                                 
                                 seen_models.add(full_name)
