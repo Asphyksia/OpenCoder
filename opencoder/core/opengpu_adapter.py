@@ -28,6 +28,22 @@ class OpenGPUError(Exception):
     pass
 
 
+def normalize_model_for_api(model: str) -> str:
+    """Normalize model name for API comparison.
+    
+    Only removes "openai/" prefix. Other providers are kept as-is.
+    
+    Args:
+        model: Model name (e.g., "openai/gpt-5.2", "Qwen/Qwen3-Coder")
+    
+    Returns:
+        Normalized model name for comparison
+    """
+    if model.startswith("openai/"):
+        return model[7:]  # Remove "openai/" prefix
+    return model
+
+
 class OpenGPUAPIError(OpenGPUError):
     """Exception for API-related errors."""
     def __init__(self, message: str, status_code: int = None):

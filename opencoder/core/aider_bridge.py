@@ -231,13 +231,23 @@ class AiderBridge:
                 )
             else:
                 logger.error(f"[AiderBridge] Error: {error_output}")
+                # Add probable causes for common errors
+                probable_cause = ""
+                if "Model" in error_output and "not" in error_output:
+                    probable_cause = "\n💡 Possible cause: Check if the model name is correct for OpenGPU. Use /models endpoint to see available models."
+                elif "API" in error_output and ("key" in error_output.lower() or "auth" in error_output.lower()):
+                    probable_cause = "\n💡 Possible cause: Check OPENGPU_API_KEY environment variable is set correctly."
+                elif "connection" in error_output.lower() or "timeout" in error_output.lower():
+                    probable_cause = "\n💡 Possible cause: Check network connection and OPENGPU_BASE_URL is correct."
+                
+                error_msg = error_output + probable_cause if probable_cause else error_output
                 return AiderResult(
                     success=False,
                     message="Error en Aider",
                     output=output,
                     diffs=diffs,
                     files_changed=files_changed,
-                    error=error_output
+                    error=error_msg
                 )
                 
         except FileNotFoundError:

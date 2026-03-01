@@ -228,6 +228,31 @@ async def chat(request: ChatRequest, session_id: Optional[str] = None):
     repo_path = get_repo_path()
     model_name = request.model or os.getenv("OPENGPU_MODEL", "")
     
+    # Validate model against available models
+    if model_name:
+        try:
+            adapter = OpenGPUAdapter()
+            available_models = await adapter.get_available_models()
+            model_ids = [m.get("id", m.get("name", str(m))) for m in available_models]
+            
+            # Check if model is in the list (compare normalized names)
+            from opencoder.core.opengpu_adapter import normalize_model_for_api
+            normalized_input = normalize_model_for_api(model_name)
+            normalized_available = [normalize_model_for_api(m) for m in model_ids]
+            
+            if normalized_input not in normalized_available and model_name not in model_ids:
+                available_list = "\n".join([f"  - {m}" for m in model_ids[:20]])
+                if len(model_ids) > 20:
+                    available_list += f"\n  ... and {len(model_ids) - 20} more"
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Model '{model_name}' not available.\n\nAvailable models:\n{available_list}"
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # Skip validation if we can't get the list
+    
     try:
         # Get or create AiderBridge for session
         # AiderBridge uses subprocess to run Aider CLI, bypassing Python version issues
