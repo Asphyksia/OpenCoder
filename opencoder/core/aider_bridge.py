@@ -103,23 +103,44 @@ class AiderBridge:
         Returns:
             Lista de comandos para ejecutar Aider via uv tool with litellm patch.
         """
-        # Use uv from PATH - it should be available in the environment
         import shutil
+        import pathlib
+        import subprocess
+        
+        project_root = pathlib.Path(__file__).parent.parent.parent
+        wrapper_path = project_root / "scripts" / "aider_with_patch.py"
+        
+        # First, try to find and verify aider in the venv
+        venv_aider = project_root / "venv" / "bin" / "aider"
+        
+        if venv_aider.exists():
+            try:
+                # Test if venv's aider actually works
+                result = subprocess.run(
+                    [str(venv_aider), "--version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                if result.returncode == 0:
+                    # venv aider works, use it with our wrapper
+                    return [str(venv_aider), str(wrapper_path)]
+            except Exception:
+                pass  # Fall through to uv tool run
+        
+        # Fallback: use uv to run aider in isolated environment
         uv_path = shutil.which("uv")
         if not uv_path:
-            raise RuntimeError("uv not found in PATH. Please ensure uv is installed and available.")
-        
-        # Get the path to our wrapper script
-        import pathlib
-        wrapper_path = pathlib.Path(__file__).parent.parent.parent / "scripts" / "aider_with_patch.py"
+            raise RuntimeError("uv not found in PATH and aider not working in venv. Please ensure uv is installed.")
         
         # Use uv to run our wrapper script which patches litellm before running aider
-        # We need to add dependencies (httpx, loguru) to the environment
+        # We need to add dependencies (httpx, loguru, aider-chat) to the environment
         return [
             uv_path, "tool", "run",
             "--with", "httpx",
             "--with", "loguru",
-            "--from", "aider-chat",
+            "--with", "aider-chat",
+            "--with", "gitpython",
             "python", str(wrapper_path)
         ]
     
