@@ -64,29 +64,17 @@ OpenCoder is an **enterprise-grade agentic coding tool** that combines the power
 ### 🏗️ Architecture
 
 ```
-                        OpenCoder Architecture
-
-
-                           ===================== +----------------+       +----------------+
-    |   Frontend     |       |  REST API      |
-    |   Next.js      | <---> |   FastAPI      |
-    |   Port 3000   |       |   Port 8001    |
-    +--------+-------+       +--------+-------+
-             |                        |
-             +----------+-------------+
-                        |
-              +---------v---------+
-              |   AiderBridge     |
-              |   Agent Engine    |
-              +---------+---------+
-                        |
-     +------------------+------------------+
-     |                  |                  |
-     v                  v                  v
-+-------------+  +-------------+  +-------------+
-|   OpenGPU   |  |   LiteLLM   |  |    Git      |
-|    Relay    |  |    Patch    |  | Integration |
-+-------------+  +-------------+  +-------------+
+┌──────────────────────────────────────────────────────────────────┐
+│                         OpenCoder                                 │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│   [Frontend]        [REST API]       [AiderBridge]              │
+│   Next.js   <---->  FastAPI   <---->  Agent Engine              │
+│   Port 3000         Port 8001                                 │
+│                                                                   │
+│          OpenGPU Relay     LiteLLM Patch    Git                 │
+│                                                                   │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### 🔧 Technical Components
